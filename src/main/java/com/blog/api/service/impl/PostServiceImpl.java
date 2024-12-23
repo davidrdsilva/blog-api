@@ -8,7 +8,6 @@ import com.blog.api.model.entity.User;
 import com.blog.api.repository.PostRepository;
 import com.blog.api.repository.UserRepository;
 import com.blog.api.service.PostService;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -61,7 +60,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Post getPostById(UUID id) {
-        return null;
+        return postRepository.getReferenceById(id);
     }
 
     @Override

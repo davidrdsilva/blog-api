@@ -1,6 +1,7 @@
 package com.blog.api.controller;
 
 import com.blog.api.model.dto.CreatePostDTO;
+import com.blog.api.model.dto.PostDTO;
 import com.blog.api.model.entity.Post;
 import com.blog.api.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,7 +50,8 @@ public class PostController {
             description = "Post not found"
     )
     @GetMapping("/{id}")
-    public ResponseEntity<Post> getPost(@PathVariable UUID id) {
-        return null;
+    public ResponseEntity<PostDTO> getPost(@PathVariable UUID id) {
+        Post post = postService.getPostById(id);
+        return ResponseEntity.ok(PostDTO.fromEntity(post));
     }
 }

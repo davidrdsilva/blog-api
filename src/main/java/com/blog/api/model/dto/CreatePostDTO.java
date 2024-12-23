@@ -26,5 +26,5 @@ public class CreatePostDTO {
 
     @NotNull
     @JsonRawValue
-    private Object body;  // JSON string
+    private String body;  // JSON string
 }

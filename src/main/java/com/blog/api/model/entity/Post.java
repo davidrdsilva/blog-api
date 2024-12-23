@@ -1,6 +1,5 @@
 package com.blog.api.model.entity;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -32,7 +31,7 @@ public class Post {
 
     @Column(name = "body", nullable = false, columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
-    private Object body;
+    private String body;
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)

@@ -1,7 +1,6 @@
 package com.blog.api.model.dto;
 
 import com.blog.api.model.entity.Post;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -14,7 +13,7 @@ public class PostDTO {
     private String description;
     private String image;
     private Integer views;
-    private Object body;  // JSON string
+    private String body;  // JSON string
     private UUID authorId;  // Instead of full User object, just the ID
     private String authorName;
     private LocalDateTime createdAt;
