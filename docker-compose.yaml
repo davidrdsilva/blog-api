@@ -1,0 +1,19 @@
+services:
+  database:
+    profiles:
+      - dev
+      - local
+    image: postgres:alpine
+    container_name: db
+    volumes:
+      - database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: blog-api
+      PGTZ: America/Recife
+    ports:
+      - "5432:5432"
+
+volumes:
+  database:
