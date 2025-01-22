@@ -13,7 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -35,6 +37,27 @@ public class PostController {
     @PostMapping
     public ResponseEntity<Post> createPost(@RequestBody @Valid CreatePostDTO postDTO) {
         return ResponseEntity.ok(postService.createPost(postDTO));
+    }
+
+    @Operation(
+            summary = "Get all posts",
+            description = "Retrieves all posts"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved the posts"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Posts were not found"
+    )
+    @GetMapping()
+    public ResponseEntity<List<PostDTO>> getAllPosts() {
+        List<Post> posts = postService.getAllPosts();
+        List<PostDTO> postDTOs = posts.stream()
+                .map(PostDTO::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(postDTOs);
     }
 
     @Operation(
