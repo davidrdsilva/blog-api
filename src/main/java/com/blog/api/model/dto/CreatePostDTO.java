@@ -1,5 +1,6 @@
 package com.blog.api.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +23,7 @@ public class CreatePostDTO {
     private String image;
 
     @NotBlank
+    @JsonProperty("author_id")
     private UUID authorId;
 
     @NotNull

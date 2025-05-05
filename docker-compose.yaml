@@ -20,7 +20,6 @@ services:
   storage:
     profiles:
       - dev
-      - local
     container_name: minio
     image: minio/minio:latest
     ports:
@@ -38,7 +37,6 @@ services:
   create-required-buckets:
     profiles:
       - dev
-      - local
     image: minio/mc
     depends_on:
       - storage
