@@ -54,19 +54,22 @@ func main() {
 
 	// Initialize repositories
 	postRepo := repository.NewPostgresPostRepository(db)
+	commentRepo := repository.NewPostgresCommentRepository(db)
 
 	// Initialize services
 	postService := services.NewPostService(postRepo, cfg)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
+	commentService := services.NewCommentService(commentRepo, cfg)
 
 	// Initialize handlers
 	postHandler := handlers.NewPostHandler(postService, logger)
 	uploadHandler := handlers.NewUploadHandler(uploadService, logger)
 	urlHandler := handlers.NewURLHandler(urlService, logger)
+	commentHandler := handlers.NewCommentHandler(commentService, logger)
 
 	// Setup router
-	r := router.SetupRouter(postHandler, uploadHandler, urlHandler, logger, cfg.Server.CORSOrigins)
+	r := router.SetupRouter(postHandler, uploadHandler, urlHandler, commentHandler, logger, cfg.Server.CORSOrigins)
 
 	// Create HTTP server
 	srv := &http.Server{

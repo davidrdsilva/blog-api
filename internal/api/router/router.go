@@ -12,6 +12,7 @@ func SetupRouter(
 	postHandler *handlers.PostHandler,
 	uploadHandler *handlers.UploadHandler,
 	urlHandler *handlers.URLHandler,
+	commentHandler *handlers.CommentHandler,
 	logger *logging.Logger,
 	corsOrigins []string,
 ) *gin.Engine {
@@ -35,6 +36,11 @@ func SetupRouter(
 		api.POST("/posts", postHandler.CreatePost)
 		api.PUT("/posts/:id", postHandler.UpdatePost)
 		api.DELETE("/posts/:id", postHandler.DeletePost)
+
+		// Comment endpoints
+		api.POST("/comments", commentHandler.CreateComment)
+		api.GET("/comments", commentHandler.ListComments)
+		api.DELETE("/comments/:id", commentHandler.DeleteComment)
 
 		// Upload endpoint
 		api.POST("/upload", uploadHandler.UploadImage)

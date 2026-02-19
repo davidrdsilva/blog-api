@@ -44,6 +44,7 @@ func RunMigrations(db *gorm.DB, log *logging.Logger) error {
 
 	err := db.AutoMigrate(
 		&models.Post{},
+		&models.Comment{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -71,6 +72,11 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 	// Index on author for filtering
 	if err := db.Exec("CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author)").Error; err != nil {
 		return fmt.Errorf("failed to create author index: %w", err)
+	}
+
+	// Index on post_id for comments
+	if err := db.Exec("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id)").Error; err != nil {
+		return fmt.Errorf("failed to create post_id index: %w", err)
 	}
 
 	// Full-text search index on searchable fields
