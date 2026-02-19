@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"github.com/davidrdsilva/blog-api/internal/domain/models"
 	"gorm.io/gorm"
 )
@@ -35,9 +37,26 @@ func (r *PostgresCommentRepository) FindAllByPostID(postID string) ([]*models.Co
 
 func (r *PostgresCommentRepository) FindAll(filters models.CommentFilters) ([]*models.Comment, error) {
 	var comments []*models.Comment
-	if err := r.db.Find(&comments).Error; err != nil {
-		return nil, err
+
+	query := r.db.Model(&models.Comment{})
+
+	if filters.PostID != "" {
+		query = query.Where("post_id = ?", filters.PostID)
 	}
+	if filters.Author != "" {
+		query = query.Where("author = ?", filters.Author)
+	}
+	if filters.SortBy != "" {
+		query = query.Order(filters.SortBy)
+	}
+	if filters.SortOrder != "" {
+		query = query.Order(filters.SortOrder)
+	}
+
+	if err := query.Find(&comments).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch comments: %w", err)
+	}
+
 	return comments, nil
 }
 

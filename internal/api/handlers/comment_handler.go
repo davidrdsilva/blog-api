@@ -74,13 +74,25 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 }
 
 func (h *CommentHandler) ListComments(c *gin.Context) {
-	comments, err := h.service.GetComments(models.CommentFilters{
-		PostID:    c.Query("post_id"),
+	h.logger.Debug("Listing comments", logging.F("postId", c.Query("postId")), logging.F("author", c.Query("author")), logging.F("sortBy", c.Query("sortBy")), logging.F("sortOrder", c.Query("sortOrder")))
+	filters := models.CommentFilters{
+		PostID:    c.Query("postId"),
 		Author:    c.Query("author"),
-		SortBy:    c.Query("sort_by"),
-		SortOrder: c.Query("sort_order"),
-	})
+		SortBy:    c.Query("sortBy"),
+		SortOrder: c.Query("sortOrder"),
+	}
+	comments, err := h.service.GetComments(filters)
 	if err != nil {
+		if containsStr(err.Error(), "invalid input syntax for type uuid") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "INVALID_COMMENT_ID",
+					Message: "Invalid UUID format",
+				},
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
 			Error: dtos.ErrorDetail{
 				Code:    "INTERNAL_ERROR",

@@ -75,7 +75,7 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 
 	post, err := h.service.GetPost(id)
 	if err != nil {
-		if containsStr(err.Error(), "invalid UUID") {
+		if containsStr(err.Error(), "invalid input syntax for type uuid") {
 			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
 				Error: dtos.ErrorDetail{
 					Code:    "INVALID_POST_ID",
