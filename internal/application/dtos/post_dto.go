@@ -1,6 +1,10 @@
 package dtos
 
-import "github.com/davidrdsilva/blog-api/internal/domain/models"
+import (
+	"time"
+
+	"github.com/davidrdsilva/blog-api/internal/domain/models"
+)
 
 // CreatePostRequest represents the request body for creating a post
 type CreatePostRequest struct {
@@ -10,6 +14,7 @@ type CreatePostRequest struct {
 	Image       string                  `json:"image" binding:"required,url"`
 	Author      string                  `json:"author" binding:"required,min=1,max=100"`
 	Content     *models.EditorJsContent `json:"content"`
+	Date        *time.Time              `json:"date" binding:"omitempty"`
 }
 
 // UpdatePostRequest represents the request body for updating a post
@@ -28,11 +33,11 @@ type PostResponse struct {
 	Subtitle    *string                 `json:"subtitle"`
 	Description string                  `json:"description"`
 	Image       string                  `json:"image"`
-	Date        string                  `json:"date"` // ISO 8601
+	Date        string                  `json:"date"`
 	Author      string                  `json:"author"`
 	Content     *models.EditorJsContent `json:"content"`
-	CreatedAt   string                  `json:"createdAt"` // ISO 8601
-	UpdatedAt   string                  `json:"updatedAt"` // ISO 8601
+	CreatedAt   string                  `json:"createdAt"`
+	UpdatedAt   string                  `json:"updatedAt"`
 }
 
 // PostListResponse represents a paginated list of posts

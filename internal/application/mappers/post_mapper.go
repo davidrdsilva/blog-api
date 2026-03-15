@@ -38,6 +38,11 @@ func ToPostListResponse(posts []*models.Post, meta *models.PaginationMeta) dtos.
 
 // CreatePostRequestToPost converts a CreatePostRequest to a domain Post
 func CreatePostRequestToPost(req dtos.CreatePostRequest) *models.Post {
+	postDate := time.Now()
+	if req.Date != nil {
+		postDate = *req.Date
+	}
+
 	return &models.Post{
 		Title:       req.Title,
 		Subtitle:    req.Subtitle,
@@ -45,7 +50,8 @@ func CreatePostRequestToPost(req dtos.CreatePostRequest) *models.Post {
 		Image:       req.Image,
 		Author:      req.Author,
 		Content:     req.Content,
-		Date:        time.Now(),
+		Date:        postDate,
+		UpdatedAt:   postDate,
 	}
 }
 
