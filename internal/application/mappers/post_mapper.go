@@ -73,4 +73,7 @@ func UpdatePostRequestToPost(post *models.Post, req dtos.UpdatePostRequest) {
 	if req.Content != nil {
 		post.Content = req.Content
 	}
+	if req.Date != nil {
+		post.Date = *req.Date
+	}
 }

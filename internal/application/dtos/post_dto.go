@@ -24,6 +24,7 @@ type UpdatePostRequest struct {
 	Description *string                 `json:"description" binding:"omitempty,min=1,max=100"`
 	Image       *string                 `json:"image" binding:"omitempty,url"`
 	Content     *models.EditorJsContent `json:"content"`
+	Date        *time.Time              `json:"date" binding:"omitempty"`
 }
 
 // PostResponse represents a single post in API responses
