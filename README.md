@@ -64,24 +64,25 @@ All configuration is done via environment variables. See `.env.example` for avai
 
 ```
 blog-api/
-├── cmd/api/                    # Application entry point
-├── internal/
-│   ├── domain/                 # Core business logic
+├── cmd/api/                   # Application entry point
+├── internal/                  # Internal packages
+│   ├── domain/                # Core business logic
 │   │   ├── models/            # Domain entities
 │   │   └── repositories/      # Repository interfaces
 │   ├── application/           # Application services
-│   │   ├── dtos/             # Data transfer objects
-│   │   ├── mappers/          # DTO to model mappers
-│   │   └── services/         # Business logic services
+│   │   ├── dtos/              # Data transfer objects
+│   │   ├── mappers/           # DTO to model mappers
+│   │   └── services/          # Business logic services
 │   ├── infrastructure/        # External integrations
-│   │   ├── database/         # PostgreSQL setup
-│   │   ├── repository/       # Repository implementations
-│   │   ├── storage/          # MinIO client
-│   │   └── logging/          # Structured logger
+│   │   ├── ai/                # AI integrations
+│   │   ├── database/          # PostgreSQL setup
+│   │   ├── repository/        # Repository implementations
+│   │   ├── storage/           # MinIO client
+│   │   └── logging/           # Structured logger
 │   └── api/                   # HTTP layer
-│       ├── handlers/         # HTTP handlers
-│       ├── middleware/       # Middleware
-│       └── router/           # Route configuration
+│       ├── handlers/          # HTTP handlers
+│       ├── middleware/        # Middleware
+│       └── router/            # Route configuration
 ├── config/                    # Configuration management
 ├── docker-compose.yml         # Docker services
 ├── Dockerfile                 # Application container

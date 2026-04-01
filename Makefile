@@ -32,4 +32,4 @@ test: ## Run tests (placeholder for now)
 	go test ./... -v
 
 dev: ## Run API locally (requires postgres and minio running)
-	go run ./cmd/api/main.go
+	export $$(grep -v '^#' .env.local | xargs) && go run ./cmd/api/main.go
