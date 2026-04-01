@@ -6,9 +6,11 @@ import (
 
 	"github.com/davidrdsilva/blog-api/config"
 	"github.com/davidrdsilva/blog-api/internal/application/dtos"
+	"github.com/davidrdsilva/blog-api/internal/application/jobs"
 	"github.com/davidrdsilva/blog-api/internal/application/mappers"
 	"github.com/davidrdsilva/blog-api/internal/domain/models"
 	"github.com/davidrdsilva/blog-api/internal/domain/repositories"
+	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 	"github.com/google/uuid"
 )
 
@@ -16,13 +18,22 @@ import (
 type PostService struct {
 	repo   repositories.PostRepository
 	config *config.Config
+	jobCh  chan<- jobs.GenerateCommentsJob
+	logger *logging.Logger
 }
 
 // NewPostService creates a new post service
-func NewPostService(repo repositories.PostRepository, cfg *config.Config) *PostService {
+func NewPostService(
+	repo repositories.PostRepository,
+	cfg *config.Config,
+	jobCh chan<- jobs.GenerateCommentsJob,
+	logger *logging.Logger,
+) *PostService {
 	return &PostService{
 		repo:   repo,
 		config: cfg,
+		jobCh:  jobCh,
+		logger: logger,
 	}
 }
 
@@ -39,6 +50,22 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 	// Save to repository
 	if err := s.repo.Create(post); err != nil {
 		return nil, fmt.Errorf("failed to create post: %w", err)
+	}
+
+	// Dispatch AI comment generation asynchronously (non-blocking)
+	if s.jobCh != nil {
+		select {
+		case s.jobCh <- jobs.GenerateCommentsJob{
+			PostID:  post.ID,
+			Title:   post.Title,
+			Content: post.Content,
+		}:
+			s.logger.Debug("AI comment job created", logging.F("postId", post.ID))
+		default:
+			// Worker is behind and the buffer is full — drop the job rather than
+			// blocking the HTTP response. The post is already saved successfully.
+			s.logger.Warn("AI comment job dropped: job channel full", logging.F("postId", post.ID))
+		}
 	}
 
 	// Convert back to response DTO

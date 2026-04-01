@@ -12,7 +12,10 @@ import (
 	"github.com/davidrdsilva/blog-api/config"
 	"github.com/davidrdsilva/blog-api/internal/api/handlers"
 	"github.com/davidrdsilva/blog-api/internal/api/router"
+	"github.com/davidrdsilva/blog-api/internal/application/jobs"
 	"github.com/davidrdsilva/blog-api/internal/application/services"
+	"github.com/davidrdsilva/blog-api/internal/application/workers"
+	"github.com/davidrdsilva/blog-api/internal/infrastructure/ai"
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/database"
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/repository"
@@ -20,6 +23,10 @@ import (
 )
 
 func main() {
+	// Root context cancelled on shutdown signal — propagates to background workers.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Initialize logger
 	logger := logging.NewLogger("blog-api")
 	logger.Info("Starting Blog API server...")
@@ -56,8 +63,16 @@ func main() {
 	postRepo := repository.NewPostgresPostRepository(db)
 	commentRepo := repository.NewPostgresCommentRepository(db)
 
+	// Set up the AI comment generation pipeline:
+	//   PostService -> jobCh -> CommentWorker -> AICommentService -> Ollama -> DB
+	jobCh := make(chan jobs.GenerateCommentsJob, 100)
+	ollamaClient := ai.NewOllamaClient(cfg)
+	aiCommentService := services.NewAICommentService(ollamaClient, commentRepo, logger)
+	commentWorker := workers.NewCommentWorker(jobCh, aiCommentService, logger)
+	commentWorker.Start(ctx)
+
 	// Initialize services
-	postService := services.NewPostService(postRepo, cfg)
+	postService := services.NewPostService(postRepo, cfg, jobCh, logger)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
 	commentService := services.NewCommentService(commentRepo, cfg)
@@ -93,14 +108,18 @@ func main() {
 
 	logger.Info("Shutting down server...")
 
-	// Graceful shutdown with 5 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Stop accepting new HTTP requests
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Server forced to shutdown", logging.F("error", err.Error()))
 		os.Exit(1)
 	}
+
+	// Signal the comment worker to stop and close the job channel
+	cancel()
+	close(jobCh)
 
 	logger.Info("Server exited gracefully")
 }

@@ -4,6 +4,7 @@ import "github.com/davidrdsilva/blog-api/internal/domain/models"
 
 type CommentRepository interface {
 	Create(comment *models.Comment) error
+	CreateBatch(comments []*models.Comment) error
 	FindByID(id string) (*models.Comment, error)
 	FindAll(filters models.CommentFilters) ([]*models.Comment, error)
 	Update(id string, comment *models.Comment) error

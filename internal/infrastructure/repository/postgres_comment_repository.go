@@ -19,6 +19,14 @@ func (r *PostgresCommentRepository) Create(comment *models.Comment) error {
 	return r.db.Create(comment).Error
 }
 
+// CreateBatch inserts multiple comments in a single transaction.
+func (r *PostgresCommentRepository) CreateBatch(comments []*models.Comment) error {
+	if len(comments) == 0 {
+		return nil
+	}
+	return r.db.Create(&comments).Error
+}
+
 func (r *PostgresCommentRepository) FindByID(id string) (*models.Comment, error) {
 	var comment models.Comment
 	if err := r.db.First(&comment, id).Error; err != nil {

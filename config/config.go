@@ -12,6 +12,14 @@ type Config struct {
 	MinIO    MinIOConfig
 	Server   ServerConfig
 	Upload   UploadConfig
+	Ollama   OllamaConfig
+}
+
+// OllamaConfig holds settings for the local Ollama LLM service
+type OllamaConfig struct {
+	BaseURL        string
+	Model          string
+	TimeoutSeconds int
 }
 
 // DatabaseConfig holds database connection settings
@@ -61,6 +69,11 @@ func Load() (*Config, error) {
 
 	useSSL := getEnv("MINIO_USE_SSL", "false") == "true"
 
+	ollamaTimeout, err := strconv.Atoi(getEnv("OLLAMA_TIMEOUT_SECONDS", "120"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid OLLAMA_TIMEOUT_SECONDS: %w", err)
+	}
+
 	return &Config{
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -86,6 +99,11 @@ func Load() (*Config, error) {
 			MaxFileSizeMB:     maxFileSize,
 			MaxImageDimension: maxImageDim,
 			AllowedMimeTypes:  []string{"image/jpeg", "image/png", "image/gif", "image/webp"},
+		},
+		Ollama: OllamaConfig{
+			BaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
+			Model:          getEnv("OLLAMA_MODEL", "mistral"),
+			TimeoutSeconds: ollamaTimeout,
 		},
 	}, nil
 }
