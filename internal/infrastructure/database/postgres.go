@@ -90,6 +90,17 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 		return fmt.Errorf("failed to create search index: %w", err)
 	}
 
+	// Ensure the comments FK has ON DELETE CASCADE.
+	// AutoMigrate creates the constraint on fresh databases, but won't alter an
+	// existing one, so we re-create it explicitly to handle running instances.
+	if err := db.Exec(`
+		ALTER TABLE comments DROP CONSTRAINT IF EXISTS fk_posts_comments;
+		ALTER TABLE comments ADD CONSTRAINT fk_posts_comments
+			FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+	`).Error; err != nil {
+		return fmt.Errorf("failed to set cascade delete on comments: %w", err)
+	}
+
 	log.Info("Database indexes created successfully")
 	return nil
 }

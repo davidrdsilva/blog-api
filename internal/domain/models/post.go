@@ -17,7 +17,7 @@ type Post struct {
 	Date        time.Time        `gorm:"type:timestamp with time zone;not null" json:"date"`
 	Author      string           `gorm:"type:varchar(100);not null" json:"author"`
 	Content     *EditorJsContent `gorm:"type:jsonb" json:"content"`
-	Comments    []Comment        `gorm:"foreignKey:PostID;references:ID" json:"comments,omitempty"`
+	Comments    []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
 	CreatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
 	UpdatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`
 }
