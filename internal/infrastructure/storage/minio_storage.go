@@ -99,20 +99,16 @@ func (s *MinIOStorage) ensureBucket() error {
 	return nil
 }
 
-// UploadImage uploads an image file and returns its public URL
 func (s *MinIOStorage) UploadImage(fileData []byte, originalFilename string, contentType string) (string, error) {
-	// Validate MIME type
 	if !s.isAllowedMimeType(contentType) {
 		return "", fmt.Errorf("invalid file type: %s (allowed: %v)", contentType, s.config.AllowedMimeTypes)
 	}
 
-	// Validate file size
 	fileSizeMB := float64(len(fileData)) / (1024 * 1024)
 	if fileSizeMB > float64(s.config.MaxFileSizeMB) {
 		return "", fmt.Errorf("file size %.2fMB exceeds maximum allowed size of %dMB", fileSizeMB, s.config.MaxFileSizeMB)
 	}
 
-	// Validate image dimensions
 	if err := s.validateImageDimensions(fileData); err != nil {
 		return "", err
 	}
@@ -146,7 +142,6 @@ func (s *MinIOStorage) UploadImage(fileData []byte, originalFilename string, con
 	return url, nil
 }
 
-// isAllowedMimeType checks if the MIME type is allowed
 func (s *MinIOStorage) isAllowedMimeType(mimeType string) bool {
 	for _, allowed := range s.config.AllowedMimeTypes {
 		if strings.EqualFold(mimeType, allowed) {
@@ -156,7 +151,6 @@ func (s *MinIOStorage) isAllowedMimeType(mimeType string) bool {
 	return false
 }
 
-// validateImageDimensions checks if image dimensions are within limits
 func (s *MinIOStorage) validateImageDimensions(fileData []byte) error {
 	reader := bytes.NewReader(fileData)
 	img, _, err := image.DecodeConfig(reader)
@@ -173,7 +167,6 @@ func (s *MinIOStorage) validateImageDimensions(fileData []byte) error {
 	return nil
 }
 
-// getExtensionFromMimeType returns file extension for a given MIME type
 func (s *MinIOStorage) getExtensionFromMimeType(mimeType string) string {
 	switch mimeType {
 	case "image/jpeg":
@@ -189,7 +182,6 @@ func (s *MinIOStorage) getExtensionFromMimeType(mimeType string) string {
 	}
 }
 
-// HealthCheck verifies MinIO connectivity
 func (s *MinIOStorage) HealthCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

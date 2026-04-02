@@ -55,8 +55,6 @@ func CreatePostRequestToPost(req dtos.CreatePostRequest) *models.Post {
 	}
 }
 
-// UpdatePostRequestToPost applies UpdatePostRequest fields to a Post
-// Only updates fields that are provided (not nil)
 func UpdatePostRequestToPost(post *models.Post, req dtos.UpdatePostRequest) {
 	if req.Title != nil {
 		post.Title = *req.Title

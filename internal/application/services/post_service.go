@@ -37,9 +37,7 @@ func NewPostService(
 	}
 }
 
-// CreatePost creates a new blog post
 func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse, error) {
-	// Validate image URL is from trusted storage
 	if err := s.validateImageURL(req.Image); err != nil {
 		return nil, fmt.Errorf("invalid image URL: %w", err)
 	}
@@ -73,9 +71,7 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 	return &response, nil
 }
 
-// GetPost retrieves a post by ID
 func (s *PostService) GetPost(id string) (*dtos.PostResponse, error) {
-	// Validate UUID format
 	if !isValidUUID(id) {
 		return nil, fmt.Errorf("invalid UUID format")
 	}
@@ -85,14 +81,13 @@ func (s *PostService) GetPost(id string) (*dtos.PostResponse, error) {
 		return nil, fmt.Errorf("failed to fetch post: %w", err)
 	}
 	if post == nil {
-		return nil, nil // Not found
+		return nil, nil
 	}
 
 	response := mappers.ToPostResponse(post)
 	return &response, nil
 }
 
-// ListPosts retrieves posts with pagination and filtering
 func (s *PostService) ListPosts(filters models.PostFilters) (*dtos.PostListResponse, error) {
 	posts, meta, err := s.repo.FindAll(filters)
 	if err != nil {
@@ -103,27 +98,23 @@ func (s *PostService) ListPosts(filters models.PostFilters) (*dtos.PostListRespo
 	return &response, nil
 }
 
-// UpdatePost updates an existing post
 func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.PostResponse, error) {
-	// Validate UUID format
 	if !isValidUUID(id) {
 		return nil, fmt.Errorf("invalid UUID format")
 	}
 
-	// Validate image URL if provided
 	if req.Image != nil {
 		if err := s.validateImageURL(*req.Image); err != nil {
 			return nil, fmt.Errorf("invalid image URL: %w", err)
 		}
 	}
 
-	// Fetch existing post
 	post, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch post: %w", err)
 	}
 	if post == nil {
-		return nil, nil // Not found
+		return nil, nil
 	}
 
 	// Apply updates
@@ -134,7 +125,6 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("failed to update post: %w", err)
 	}
 
-	// Fetch updated post to get latest timestamps
 	updatedPost, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch updated post: %w", err)
@@ -146,7 +136,6 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 
 // DeletePost deletes a post by ID
 func (s *PostService) DeletePost(id string) error {
-	// Validate UUID format
 	if !isValidUUID(id) {
 		return fmt.Errorf("invalid UUID format")
 	}
@@ -160,10 +149,8 @@ func (s *PostService) DeletePost(id string) error {
 
 // validateImageURL checks if the image URL is from the trusted storage domain
 func (s *PostService) validateImageURL(imageURL string) error {
-	// Get the public URL from MinIO config
 	trustedDomain := s.config.MinIO.PublicURL
 
-	// Check if the image URL starts with the trusted domain
 	if !strings.HasPrefix(imageURL, trustedDomain) {
 		return fmt.Errorf("image must be uploaded via /api/upload endpoint")
 	}
