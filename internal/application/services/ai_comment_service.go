@@ -63,13 +63,16 @@ func NewAICommentService(
 	}
 }
 
-// GenerateAndSave builds a prompt from the job, calls Ollama, and persists all
-// generated comments in a single transaction. Called by CommentWorker.
+// GenerateAndSave builds a prompt from the job, calls the AI client, and
+// persists all generated comments in a single transaction. Called by CommentWorker.
 func (s *AICommentService) GenerateAndSave(ctx context.Context, job jobs.GenerateCommentsJob) error {
 	text := extractPlainText(job.Content)
-	prompt := buildCommentPrompt(job.Title, text)
+	imageURLs := extractImageURLs(job.Content)
 
-	raw, err := s.ollamaClient.Generate(ctx, prompt)
+	raw, err := s.ollamaClient.Generate(ctx, ai.GenerateRequest{
+		Prompt:    buildCommentPrompt(job.Title, text),
+		ImageURLs: imageURLs,
+	})
 	if err != nil {
 		return fmt.Errorf("ai generation failed: %w", err)
 	}
@@ -140,6 +143,30 @@ func extractPlainText(content *models.EditorJsContent) string {
 		}
 	}
 	return strings.TrimSpace(sb.String())
+}
+
+// extractImageURLs collects the file URL from every Editor.js image block.
+func extractImageURLs(content *models.EditorJsContent) []string {
+	if content == nil {
+		return nil
+	}
+
+	var urls []string
+	for _, block := range content.Blocks {
+		if block.Type != "image" {
+			continue
+		}
+		fileData, ok := block.Data["file"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		url, ok := fileData["url"].(string)
+		if !ok || url == "" {
+			continue
+		}
+		urls = append(urls, url)
+	}
+	return urls
 }
 
 // buildCommentPrompt assembles the full prompt, truncating content to stay within context limits.

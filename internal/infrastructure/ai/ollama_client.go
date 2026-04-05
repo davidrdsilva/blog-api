@@ -13,9 +13,16 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 )
 
+// GenerateRequest carries the inputs for a generation call.
+// ImageURLs is optional and ignored by text-only backends.
+type GenerateRequest struct {
+	Prompt    string
+	ImageURLs []string
+}
+
 // AIClient is the interface used by AICommentService to call any LLM backend.
 type AIClient interface {
-	Generate(ctx context.Context, prompt string) (string, error)
+	Generate(ctx context.Context, req GenerateRequest) (string, error)
 }
 
 type ollamaClient struct {
@@ -48,7 +55,7 @@ type ollamaResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
-func (c *ollamaClient) Generate(ctx context.Context, prompt string) (string, error) {
+func (c *ollamaClient) Generate(ctx context.Context, req GenerateRequest) (string, error) {
 	c.logger.Debug("Ollama: sending generation request",
 		logging.F("model", c.model),
 		logging.F("url", c.baseURL),
@@ -56,20 +63,20 @@ func (c *ollamaClient) Generate(ctx context.Context, prompt string) (string, err
 
 	body, err := json.Marshal(ollamaRequest{
 		Model:  c.model,
-		Prompt: prompt,
+		Prompt: req.Prompt,
 		Stream: false,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal ollama request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/generate", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/generate", bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("failed to build ollama request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("ollama request failed: %w", err)
 	}

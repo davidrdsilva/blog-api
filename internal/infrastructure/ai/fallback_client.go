@@ -22,15 +22,15 @@ func NewFallbackClient(primary, fallback AIClient, logger *logging.Logger) AICli
 	}
 }
 
-func (c *fallbackAIClient) Generate(ctx context.Context, prompt string) (string, error) {
+func (c *fallbackAIClient) Generate(ctx context.Context, req GenerateRequest) (string, error) {
 	c.logger.Debug("FallbackAI: trying primary client (Gemini)")
 
-	result, err := c.primary.Generate(ctx, prompt)
+	result, err := c.primary.Generate(ctx, req)
 	if err != nil {
 		c.logger.Warn("FallbackAI: primary client failed, retrying with Ollama",
 			logging.F("error", err.Error()),
 		)
-		return c.fallback.Generate(ctx, prompt)
+		return c.fallback.Generate(ctx, req)
 	}
 
 	c.logger.Debug("FallbackAI: primary client succeeded, no fallback needed")
