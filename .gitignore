@@ -37,3 +37,6 @@ Thumbs.db
 
 # Docker
 *.dockerignore
+
+# Specs
+*.local.md

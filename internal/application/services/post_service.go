@@ -130,6 +130,20 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("failed to fetch updated post: %w", err)
 	}
 
+	// Only regenerate comments when the post body itself changed.
+	if req.Content != nil && s.jobCh != nil {
+		select {
+		case s.jobCh <- jobs.GenerateCommentsJob{
+			PostID:  updatedPost.ID,
+			Title:   updatedPost.Title,
+			Content: updatedPost.Content,
+		}:
+			s.logger.Debug("AI comment job created for updated post", logging.F("postId", updatedPost.ID))
+		default:
+			s.logger.Warn("AI comment job dropped: job channel full", logging.F("postId", updatedPost.ID))
+		}
+	}
+
 	response := mappers.ToPostResponse(updatedPost)
 	return &response, nil
 }

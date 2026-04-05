@@ -1,6 +1,6 @@
 services:
   postgres:
-    profiles: [ "dev", "infra" ]
+    profiles: ["dev", "infra"]
     image: postgres:15-alpine
     container_name: blog-api-postgres
     environment:
@@ -12,14 +12,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U bloguser -d blogdb" ]
+      test: ["CMD-SHELL", "pg_isready -U bloguser -d blogdb"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   minio:
-    profiles: [ "dev", "infra" ]
+    profiles: ["dev", "infra"]
     image: minio/minio:latest
     container_name: blog-api-minio
     command: server /data --console-address ":9001"
@@ -32,14 +32,15 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://192.168.255.107:9000/minio/health/live" ]
+      test:
+        ["CMD", "curl", "-f", "http://192.168.255.107:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   api:
-    profiles: [ "infra" ]
+    profiles: ["infra"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -61,6 +62,12 @@ services:
       MINIO_PUBLIC_URL: http://192.168.255.107:9000
       SERVER_PORT: 8080
       CORS_ORIGINS: http://localhost:3000,http://192.168.255.107:3000
+      OLLAMA_BASE_URL: http://localhost:11434
+      OLLAMA_MODEL: mistral
+      OLLAMA_TIMEOUT_SECONDS: 300
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      GEMINI_MODEL: gemini-3.1-flash-lite-preview
+      GEMINI_TIMEOUT_SECONDS: 30
     depends_on:
       postgres:
         condition: service_healthy
