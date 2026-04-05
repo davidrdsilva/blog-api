@@ -64,10 +64,26 @@ func main() {
 	commentRepo := repository.NewPostgresCommentRepository(db)
 
 	// Set up the AI comment generation pipeline:
-	//   PostService -> jobCh -> CommentWorker -> AICommentService -> Ollama -> DB
+	//   PostService -> jobCh -> CommentWorker -> AICommentService -> Gemini (Ollama fallback) -> DB
 	jobCh := make(chan jobs.GenerateCommentsJob, 100)
-	ollamaClient := ai.NewOllamaClient(cfg)
-	aiCommentService := services.NewAICommentService(ollamaClient, commentRepo, logger)
+	ollamaClient := ai.NewOllamaClient(cfg, logger)
+
+	var aiClient ai.AIClient = ollamaClient
+	if cfg.Gemini.APIKey != "" {
+		geminiClient, err := ai.NewGeminiClient(cfg, logger)
+		if err != nil {
+			logger.Warn("Failed to initialise Gemini client, falling back to Ollama only",
+				logging.F("error", err.Error()),
+			)
+		} else {
+			logger.Info("Gemini client initialised", logging.F("model", cfg.Gemini.Model))
+			aiClient = ai.NewFallbackClient(geminiClient, ollamaClient, logger)
+		}
+	} else {
+		logger.Info("GEMINI_API_KEY not set, using Ollama only")
+	}
+
+	aiCommentService := services.NewAICommentService(aiClient, commentRepo, logger)
 	commentWorker := workers.NewCommentWorker(jobCh, aiCommentService, logger)
 	commentWorker.Start(ctx)
 

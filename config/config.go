@@ -13,11 +13,19 @@ type Config struct {
 	Server   ServerConfig
 	Upload   UploadConfig
 	Ollama   OllamaConfig
+	Gemini   GeminiConfig
 }
 
 // OllamaConfig holds settings for the local Ollama LLM service
 type OllamaConfig struct {
 	BaseURL        string
+	Model          string
+	TimeoutSeconds int
+}
+
+// GeminiConfig holds settings for the Google Gemini API
+type GeminiConfig struct {
+	APIKey         string
 	Model          string
 	TimeoutSeconds int
 }
@@ -50,9 +58,9 @@ type ServerConfig struct {
 
 // UploadConfig holds file upload constraints
 type UploadConfig struct {
-	MaxFileSizeMB      int
-	MaxImageDimension  int
-	AllowedMimeTypes   []string
+	MaxFileSizeMB     int
+	MaxImageDimension int
+	AllowedMimeTypes  []string
 }
 
 // Load reads configuration from environment variables
@@ -72,6 +80,11 @@ func Load() (*Config, error) {
 	ollamaTimeout, err := strconv.Atoi(getEnv("OLLAMA_TIMEOUT_SECONDS", "120"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid OLLAMA_TIMEOUT_SECONDS: %w", err)
+	}
+
+	geminiTimeout, err := strconv.Atoi(getEnv("GEMINI_TIMEOUT_SECONDS", "30"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid GEMINI_TIMEOUT_SECONDS: %w", err)
 	}
 
 	return &Config{
@@ -105,6 +118,11 @@ func Load() (*Config, error) {
 			Model:          getEnv("OLLAMA_MODEL", "mistral"),
 			TimeoutSeconds: ollamaTimeout,
 		},
+		Gemini: GeminiConfig{
+			APIKey:         getEnv("GEMINI_API_KEY", ""),
+			Model:          getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
+			TimeoutSeconds: geminiTimeout,
+		},
 	}, nil
 }
 
@@ -134,10 +152,10 @@ func parseCommaSeparated(s string) []string {
 	if s == "" {
 		return []string{}
 	}
-	
+
 	var result []string
 	current := ""
-	
+
 	for _, char := range s {
 		if char == ',' {
 			if current != "" {
@@ -148,10 +166,10 @@ func parseCommaSeparated(s string) []string {
 			current += string(char)
 		}
 	}
-	
+
 	if current != "" {
 		result = append(result, current)
 	}
-	
+
 	return result
 }

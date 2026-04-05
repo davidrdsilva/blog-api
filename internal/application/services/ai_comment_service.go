@@ -13,9 +13,9 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 )
 
-const ollamaPromptTemplate = `You are simulating a blog comment section. Given the blog post below, generate exactly 10 comments, one for each of the following personality types: angry, conservative, liberal, religious, toxic, skeptical, enthusiastic, academic, sarcastic, empathetic.
+const commentPromptTemplate = `You are simulating a blog comment section. Given the blog post below, generate exactly 15 comments, one for each of the following personality types: angry, conservative, liberal, religious, toxic, offensive, skeptical, enthusiastic, sarcastic, supportive.
 
-Each comment must sound authentic to that personality. Comments should be 1-3 sentences. Do not explain your choices. Comments MUST be in pt-BR (Brazilian Portuguese). Comments should be informal and spontaneous.
+Each comment must sound authentic to that personality. Comments should not exceed 150 words. Do not explain your choices. Comments MUST be in pt-BR (Brazilian Portuguese). Comments should be informal and spontaneous.
 
 For each comment also invent a realistic internet username that fits the personality (e.g. "GrumpyDave92" for angry, "ProfessorWilkins" for academic). Usernames should look like real social media handles: no spaces, may include numbers or underscores, 6–20 characters.
 
@@ -38,7 +38,7 @@ Blog post title: %s
 Blog post content:
 %s`
 
-type ollamaCommentEntry struct {
+type commentEntry struct {
 	Personality string `json:"personality"`
 	Username    string `json:"username"`
 	Content     string `json:"content"`
@@ -46,13 +46,13 @@ type ollamaCommentEntry struct {
 
 // AICommentService generates and persists AI-authored comments for a post.
 type AICommentService struct {
-	ollamaClient ai.OllamaClient
+	ollamaClient ai.AIClient
 	commentRepo  repositories.CommentRepository
 	logger       *logging.Logger
 }
 
 func NewAICommentService(
-	client ai.OllamaClient,
+	client ai.AIClient,
 	commentRepo repositories.CommentRepository,
 	logger *logging.Logger,
 ) *AICommentService {
@@ -67,16 +67,16 @@ func NewAICommentService(
 // generated comments in a single transaction. Called by CommentWorker.
 func (s *AICommentService) GenerateAndSave(ctx context.Context, job jobs.GenerateCommentsJob) error {
 	text := extractPlainText(job.Content)
-	prompt := buildOllamaPrompt(job.Title, text)
+	prompt := buildCommentPrompt(job.Title, text)
 
 	raw, err := s.ollamaClient.Generate(ctx, prompt)
 	if err != nil {
-		return fmt.Errorf("ollama generation failed: %w", err)
+		return fmt.Errorf("ai generation failed: %w", err)
 	}
 
-	entries, err := parseOllamaComments(raw)
+	entries, err := parseCommentEntries(raw)
 	if err != nil {
-		return fmt.Errorf("failed to parse ollama response: %w", err)
+		return fmt.Errorf("failed to parse ai response: %w", err)
 	}
 
 	comments := make([]*models.Comment, 0, len(entries))
@@ -142,20 +142,20 @@ func extractPlainText(content *models.EditorJsContent) string {
 	return strings.TrimSpace(sb.String())
 }
 
-// buildOllamaPrompt assembles the full prompt, truncating content to stay within context limits.
-func buildOllamaPrompt(title, text string) string {
+// buildCommentPrompt assembles the full prompt, truncating content to stay within context limits.
+func buildCommentPrompt(title, text string) string {
 	const maxTextLen = 2000
 	if len(text) > maxTextLen {
 		text = text[:maxTextLen] + "..."
 	}
-	return fmt.Sprintf(ollamaPromptTemplate, title, text)
+	return fmt.Sprintf(commentPromptTemplate, title, text)
 }
 
-// parseOllamaComments extracts a JSON array from the model's response.
+// parseCommentEntries extracts a JSON array from the model's response.
 // It first tries a direct unmarshal, then falls back to scanning for array boundaries,
 // since some models prepend prose even when instructed not to.
-func parseOllamaComments(raw string) ([]ollamaCommentEntry, error) {
-	var entries []ollamaCommentEntry
+func parseCommentEntries(raw string) ([]commentEntry, error) {
+	var entries []commentEntry
 
 	if err := json.Unmarshal([]byte(raw), &entries); err == nil {
 		return entries, nil

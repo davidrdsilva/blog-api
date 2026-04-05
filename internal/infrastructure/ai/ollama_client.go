@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/davidrdsilva/blog-api/config"
+	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 )
 
-// OllamaClient is the interface used by AICommentService to call the LLM.
-type OllamaClient interface {
+// AIClient is the interface used by AICommentService to call any LLM backend.
+type AIClient interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 }
 
@@ -21,15 +22,17 @@ type ollamaClient struct {
 	baseURL    string
 	model      string
 	httpClient *http.Client
+	logger     *logging.Logger
 }
 
-func NewOllamaClient(cfg *config.Config) OllamaClient {
+func NewOllamaClient(cfg *config.Config, logger *logging.Logger) AIClient {
 	return &ollamaClient{
 		baseURL: cfg.Ollama.BaseURL,
 		model:   cfg.Ollama.Model,
 		httpClient: &http.Client{
 			Timeout: time.Duration(cfg.Ollama.TimeoutSeconds) * time.Second,
 		},
+		logger: logger,
 	}
 }
 
@@ -46,6 +49,11 @@ type ollamaResponse struct {
 }
 
 func (c *ollamaClient) Generate(ctx context.Context, prompt string) (string, error) {
+	c.logger.Debug("Ollama: sending generation request",
+		logging.F("model", c.model),
+		logging.F("url", c.baseURL),
+	)
+
 	body, err := json.Marshal(ollamaRequest{
 		Model:  c.model,
 		Prompt: prompt,
@@ -85,5 +93,6 @@ func (c *ollamaClient) Generate(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("ollama error: %s", ollamaResp.Error)
 	}
 
+	c.logger.Debug("Ollama: generation completed successfully", logging.F("model", c.model))
 	return ollamaResp.Response, nil
 }
