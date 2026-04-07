@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -26,6 +26,11 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
+
+      - name: Prepare local prompt files
+        run: |
+          cp internal/application/services/comment_prompt.txt.example \
+             internal/application/services/comment_prompt.txt
 
       - name: Verify go.mod is tidy
         run: |
@@ -51,6 +56,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Prepare local prompt files
+        run: |
+          cp internal/application/services/comment_prompt.txt.example \
+             internal/application/services/comment_prompt.txt
 
       - name: Build binary
         run: CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api

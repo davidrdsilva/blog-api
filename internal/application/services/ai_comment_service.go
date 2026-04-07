@@ -13,31 +13,6 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 )
 
-const commentPromptTemplate = `You are simulating a blog comment section. Given the blog post below, generate exactly 15 comments, one for each of the following personality types: angry, conservative, liberal, religious, toxic, offensive, skeptical, enthusiastic, sarcastic, supportive.
-
-Each comment must sound authentic to that personality. Comments should not exceed 150 words. Do not explain your choices. Comments MUST be in pt-BR (Brazilian Portuguese). Comments should be informal and spontaneous.
-
-For each comment also invent a realistic internet username that fits the personality (e.g. "GrumpyDave92" for angry, "ProfessorWilkins" for academic). Usernames should look like real social media handles: no spaces, may include numbers or underscores, 6–20 characters.
-
-Respond ONLY with a valid JSON array. No markdown, no code fences, no explanation. Use exactly this structure:
-[
-  {"personality": "angry", "username": "...", "content": "..."},
-  {"personality": "conservative", "username": "...", "content": "..."},
-  {"personality": "liberal", "username": "...", "content": "..."},
-  {"personality": "religious", "username": "...", "content": "..."},
-  {"personality": "toxic", "username": "...", "content": "..."},
-  {"personality": "skeptical", "username": "...", "content": "..."},
-  {"personality": "enthusiastic", "username": "...", "content": "..."},
-  {"personality": "academic", "username": "...", "content": "..."},
-  {"personality": "sarcastic", "username": "...", "content": "..."},
-  {"personality": "empathetic", "username": "...", "content": "..."}
-]
-
-Blog post title: %s
-
-Blog post content:
-%s`
-
 type commentEntry struct {
 	Personality string `json:"personality"`
 	Username    string `json:"username"`

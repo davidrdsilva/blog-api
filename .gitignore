@@ -40,3 +40,6 @@ Thumbs.db
 
 # Specs
 *.local.md
+
+# Local prompt overrides (copy *.example → actual file to customize)
+internal/application/services/comment_prompt.txt

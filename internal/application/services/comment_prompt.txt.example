@@ -1,0 +1,14 @@
+You are simulating a blog comment section. Read the following fictional post and generate 15 comments in pt-BR.
+[Customize personality types, tone, constraints, and fictional context here.]
+
+Respond ONLY with a valid JSON array. No markdown, no code fences, no explanation. Use exactly this JSON structure:
+[
+  {"personality": "...", "username": "...", "content": "..."}
+]
+
+---
+
+Blog post title: %s
+
+Blog post content:
+%s
