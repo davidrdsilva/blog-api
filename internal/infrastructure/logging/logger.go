@@ -59,9 +59,19 @@ func (l *Logger) Debug(message string, fields ...Field) {
 	l.log(DEBUG, ColorCyan, message, fields...)
 }
 
+// brt is Brasilia Time (UTC-3), loaded once at package init.
+var brt = func() *time.Location {
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		// Fall back to a fixed UTC-3 offset if the timezone database is unavailable.
+		loc = time.FixedZone("BRT", -3*60*60)
+	}
+	return loc
+}()
+
 // log is the internal logging function
 func (l *Logger) log(level LogLevel, color string, message string, fields ...Field) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	timestamp := time.Now().In(brt).Format("2006-01-02 15:04:05")
 
 	// Format: [timestamp] [LEVEL] message | key=value key=value
 	logLine := fmt.Sprintf("%s[%s] [%s]%s %s",
