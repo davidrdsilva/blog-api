@@ -27,6 +27,16 @@ func NewPostHandler(service *services.PostService, logger *logging.Logger) *Post
 }
 
 // CreatePost handles POST /api/posts
+//
+// @Summary      Create a post
+// @Tags         posts
+// @Accept       json
+// @Produce      json
+// @Param        post  body      dtos.CreatePostRequest  true  "Post payload"
+// @Success      201   {object}  dtos.SuccessResponse
+// @Failure      400   {object}  dtos.ErrorResponse
+// @Failure      500   {object}  dtos.ErrorResponse
+// @Router       /posts [post]
 func (h *PostHandler) CreatePost(c *gin.Context) {
 	var req dtos.CreatePostRequest
 
@@ -70,6 +80,16 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 }
 
 // GetPost handles GET /api/posts/:id
+//
+// @Summary      Get a post by ID
+// @Tags         posts
+// @Produce      json
+// @Param        id   path      string  true  "Post UUID"
+// @Success      200  {object}  dtos.SuccessResponse
+// @Failure      400  {object}  dtos.ErrorResponse
+// @Failure      404  {object}  dtos.ErrorResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /posts/{id} [get]
 func (h *PostHandler) GetPost(c *gin.Context) {
 	id := c.Param("id")
 
@@ -109,6 +129,19 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 }
 
 // ListPosts handles GET /api/posts
+//
+// @Summary      List posts
+// @Tags         posts
+// @Produce      json
+// @Param        search     query     string  false  "Search term"
+// @Param        author     query     string  false  "Filter by author"
+// @Param        sortBy     query     string  false  "Sort field"
+// @Param        sortOrder  query     string  false  "asc or desc"
+// @Param        page       query     int     false  "Page number (default 1)"
+// @Param        limit      query     int     false  "Items per page (default 6)"
+// @Success      200        {object}  dtos.PostListResponse
+// @Failure      500        {object}  dtos.ErrorResponse
+// @Router       /posts [get]
 func (h *PostHandler) ListPosts(c *gin.Context) {
 	// Parse query parameters
 	filters := models.PostFilters{
@@ -136,6 +169,18 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 }
 
 // UpdatePost handles PUT /api/posts/:id
+//
+// @Summary      Update a post
+// @Tags         posts
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                  true  "Post UUID"
+// @Param        post  body      dtos.UpdatePostRequest  true  "Fields to update"
+// @Success      200   {object}  dtos.SuccessResponse
+// @Failure      400   {object}  dtos.ErrorResponse
+// @Failure      404   {object}  dtos.ErrorResponse
+// @Failure      500   {object}  dtos.ErrorResponse
+// @Router       /posts/{id} [put]
 func (h *PostHandler) UpdatePost(c *gin.Context) {
 	id := c.Param("id")
 	var req dtos.UpdatePostRequest
@@ -208,6 +253,15 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 }
 
 // DeletePost handles DELETE /api/posts/:id
+//
+// @Summary      Delete a post
+// @Tags         posts
+// @Param        id  path  string  true  "Post UUID"
+// @Success      204
+// @Failure      400  {object}  dtos.ErrorResponse
+// @Failure      404  {object}  dtos.ErrorResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /posts/{id} [delete]
 func (h *PostHandler) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 

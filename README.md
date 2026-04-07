@@ -108,6 +108,31 @@ make test
 go test ./... -v
 ```
 
+## API Documentation (Swagger)
+
+The API is documented with Swagger UI, available at `http://localhost:8080/swagger/index.html` when the server is running.
+
+### Accessing the UI
+
+Start the server (`make run` or `make dev`) and open:
+```
+http://localhost:8080/swagger/index.html
+```
+
+### Regenerating the docs
+
+Run this after adding or changing any endpoint annotation:
+```bash
+swag init -g cmd/api/main.go
+```
+
+If `swag` is not in your `PATH`, use the full path:
+```bash
+~/go/bin/swag init -g cmd/api/main.go
+```
+
+The command regenerates `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`.
+
 ## MinIO Console
 
 Access the MinIO console at http://localhost:9001

@@ -1,3 +1,8 @@
+// @title           Blog API
+// @version         1.0
+// @description     RESTful backend for a blog client. Handles posts, image uploads, and URL metadata extraction for Editor.js integration.
+// @basePath        /api
+
 package main
 
 import (
@@ -9,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/davidrdsilva/blog-api/docs"
 	"github.com/davidrdsilva/blog-api/config"
 	"github.com/davidrdsilva/blog-api/internal/api/handlers"
 	"github.com/davidrdsilva/blog-api/internal/api/router"

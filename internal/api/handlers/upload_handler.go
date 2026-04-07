@@ -23,6 +23,15 @@ func NewUploadHandler(service *services.UploadService, logger *logging.Logger) *
 }
 
 // UploadImage handles POST /api/upload
+//
+// @Summary      Upload an image
+// @Tags         upload
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file  formData  file  true  "Image file"
+// @Success      200   {object}  dtos.EditorJsUploadResponse
+// @Failure      500   {object}  dtos.EditorJsUploadResponse
+// @Router       /upload [post]
 func (h *UploadHandler) UploadImage(c *gin.Context) {
 	// Get file from multipart form
 	file, header, err := c.Request.FormFile("file")

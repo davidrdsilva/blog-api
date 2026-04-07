@@ -23,6 +23,14 @@ func NewURLHandler(service *services.URLService, logger *logging.Logger) *URLHan
 }
 
 // FetchURLMetadata handles GET /api/fetch-url
+//
+// @Summary      Fetch URL metadata
+// @Tags         url
+// @Produce      json
+// @Param        url  query     string  true  "URL to fetch metadata from"
+// @Success      200  {object}  dtos.EditorJsURLResponse
+// @Failure      500  {object}  dtos.EditorJsURLResponse
+// @Router       /fetch-url [get]
 func (h *URLHandler) FetchURLMetadata(c *gin.Context) {
 	url := c.Query("url")
 

@@ -5,6 +5,8 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/api/middleware"
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // SetupRouter configures all routes and middleware
@@ -55,6 +57,9 @@ func SetupRouter(
 			"status": "ok",
 		})
 	})
+
+	// Swagger UI
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return r
 }

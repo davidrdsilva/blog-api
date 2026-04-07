@@ -23,6 +23,18 @@ func NewCommentHandler(service *services.CommentService, logger *logging.Logger)
 	}
 }
 
+// CreateComment handles POST /api/comments
+//
+// @Summary      Create a comment
+// @Tags         comments
+// @Accept       json
+// @Produce      json
+// @Param        comment  body      dtos.CreateCommentRequest  true  "Comment payload"
+// @Success      201      {object}  dtos.SuccessResponse
+// @Failure      400      {object}  dtos.ErrorResponse
+// @Failure      404      {object}  dtos.ErrorResponse
+// @Failure      500      {object}  dtos.ErrorResponse
+// @Router       /comments [post]
 func (h *CommentHandler) CreateComment(c *gin.Context) {
 	var req dtos.CreateCommentRequest
 
@@ -73,6 +85,19 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 	c.JSON(http.StatusCreated, dtos.SuccessResponse{Data: comment})
 }
 
+// ListComments handles GET /api/comments
+//
+// @Summary      List comments
+// @Tags         comments
+// @Produce      json
+// @Param        postId     query     string  false  "Filter by post ID"
+// @Param        author     query     string  false  "Filter by author"
+// @Param        sortBy     query     string  false  "Sort field"
+// @Param        sortOrder  query     string  false  "asc or desc"
+// @Success      200        {object}  dtos.CommentListResponse
+// @Failure      400        {object}  dtos.ErrorResponse
+// @Failure      500        {object}  dtos.ErrorResponse
+// @Router       /comments [get]
 func (h *CommentHandler) ListComments(c *gin.Context) {
 	h.logger.Debug("Listing comments", logging.F("postId", c.Query("postId")), logging.F("author", c.Query("author")), logging.F("sortBy", c.Query("sortBy")), logging.F("sortOrder", c.Query("sortOrder")))
 	filters := models.CommentFilters{
@@ -105,6 +130,16 @@ func (h *CommentHandler) ListComments(c *gin.Context) {
 	c.JSON(http.StatusOK, comments)
 }
 
+// DeleteComment handles DELETE /api/comments/:id
+//
+// @Summary      Delete a comment
+// @Tags         comments
+// @Param        id  path  string  true  "Comment UUID"
+// @Success      200  {object}  dtos.SuccessResponse
+// @Failure      400  {object}  dtos.ErrorResponse
+// @Failure      404  {object}  dtos.ErrorResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /comments/{id} [delete]
 func (h *CommentHandler) DeleteComment(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

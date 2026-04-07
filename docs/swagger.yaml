@@ -1,0 +1,528 @@
+basePath: /api
+definitions:
+  dtos.CommentListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dtos.CommentResponse'
+        type: array
+    type: object
+  dtos.CommentResponse:
+    properties:
+      author:
+        type: string
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      postId:
+        type: string
+    type: object
+  dtos.CreateCommentRequest:
+    properties:
+      author:
+        type: string
+      content:
+        type: string
+      postId:
+        type: string
+    type: object
+  dtos.CreatePostRequest:
+    properties:
+      author:
+        maxLength: 100
+        minLength: 1
+        type: string
+      content:
+        $ref: '#/definitions/models.EditorJsContent'
+      date:
+        type: string
+      description:
+        maxLength: 100
+        minLength: 1
+        type: string
+      image:
+        type: string
+      subtitle:
+        maxLength: 300
+        type: string
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - author
+    - description
+    - image
+    - title
+    type: object
+  dtos.EditorJsErrorDetail:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  dtos.EditorJsFileInfo:
+    properties:
+      url:
+        type: string
+    type: object
+  dtos.EditorJsURLResponse:
+    properties:
+      error:
+        $ref: '#/definitions/dtos.EditorJsErrorDetail'
+      link:
+        type: string
+      meta:
+        $ref: '#/definitions/dtos.URLMetadata'
+      success:
+        type: integer
+    type: object
+  dtos.EditorJsUploadResponse:
+    properties:
+      error:
+        $ref: '#/definitions/dtos.EditorJsErrorDetail'
+      file:
+        $ref: '#/definitions/dtos.EditorJsFileInfo'
+      success:
+        type: integer
+    type: object
+  dtos.ErrorDetail:
+    properties:
+      code:
+        type: string
+      details:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      message:
+        type: string
+    type: object
+  dtos.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/dtos.ErrorDetail'
+    type: object
+  dtos.PostListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dtos.PostResponse'
+        type: array
+      meta:
+        $ref: '#/definitions/models.PaginationMeta'
+    type: object
+  dtos.PostResponse:
+    properties:
+      author:
+        type: string
+      content:
+        $ref: '#/definitions/models.EditorJsContent'
+      createdAt:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      image:
+        type: string
+      subtitle:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  dtos.SuccessResponse:
+    properties:
+      data: {}
+    type: object
+  dtos.URLImageInfo:
+    properties:
+      url:
+        type: string
+    type: object
+  dtos.URLMetadata:
+    properties:
+      description:
+        type: string
+      image:
+        $ref: '#/definitions/dtos.URLImageInfo'
+      title:
+        type: string
+    type: object
+  dtos.UpdatePostRequest:
+    properties:
+      content:
+        $ref: '#/definitions/models.EditorJsContent'
+      date:
+        type: string
+      description:
+        maxLength: 100
+        minLength: 1
+        type: string
+      image:
+        type: string
+      subtitle:
+        maxLength: 300
+        type: string
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    type: object
+  models.EditorJsBlock:
+    properties:
+      data:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      type:
+        type: string
+    type: object
+  models.EditorJsContent:
+    properties:
+      blocks:
+        items:
+          $ref: '#/definitions/models.EditorJsBlock'
+        type: array
+      time:
+        description: Unix timestamp in milliseconds
+        type: integer
+      version:
+        description: Editor.js version
+        type: string
+    type: object
+  models.PaginationMeta:
+    properties:
+      hasMore:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: RESTful backend for a blog client. Handles posts, image uploads, and
+    URL metadata extraction for Editor.js integration.
+  title: Blog API
+  version: "1.0"
+paths:
+  /comments:
+    get:
+      parameters:
+      - description: Filter by post ID
+        in: query
+        name: postId
+        type: string
+      - description: Filter by author
+        in: query
+        name: author
+        type: string
+      - description: Sort field
+        in: query
+        name: sortBy
+        type: string
+      - description: asc or desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CommentListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List comments
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Comment payload
+        in: body
+        name: comment
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Create a comment
+      tags:
+      - comments
+  /comments/{id}:
+    delete:
+      parameters:
+      - description: Comment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Delete a comment
+      tags:
+      - comments
+  /fetch-url:
+    get:
+      parameters:
+      - description: URL to fetch metadata from
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.EditorJsURLResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.EditorJsURLResponse'
+      summary: Fetch URL metadata
+      tags:
+      - url
+  /posts:
+    get:
+      parameters:
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Filter by author
+        in: query
+        name: author
+        type: string
+      - description: Sort field
+        in: query
+        name: sortBy
+        type: string
+      - description: asc or desc
+        in: query
+        name: sortOrder
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 6)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PostListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List posts
+      tags:
+      - posts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post payload
+        in: body
+        name: post
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Create a post
+      tags:
+      - posts
+  /posts/{id}:
+    delete:
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Delete a post
+      tags:
+      - posts
+    get:
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Get a post by ID
+      tags:
+      - posts
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: post
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Update a post
+      tags:
+      - posts
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.EditorJsUploadResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.EditorJsUploadResponse'
+      summary: Upload an image
+      tags:
+      - upload
+swagger: "2.0"
