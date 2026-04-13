@@ -24,11 +24,11 @@ func NewUploadHandler(service *services.UploadService, logger *logging.Logger) *
 
 // UploadImage handles POST /api/upload
 //
-// @Summary      Upload an image
+// @Summary      Upload a file (image or video)
 // @Tags         upload
 // @Accept       multipart/form-data
 // @Produce      json
-// @Param        file  formData  file  true  "Image file"
+// @Param        file  formData  file  true  "Image or video file"
 // @Success      200   {object}  dtos.EditorJsUploadResponse
 // @Failure      500   {object}  dtos.EditorJsUploadResponse
 // @Router       /upload [post]

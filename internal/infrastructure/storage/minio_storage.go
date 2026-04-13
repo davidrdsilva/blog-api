@@ -99,18 +99,29 @@ func (s *MinIOStorage) ensureBucket() error {
 	return nil
 }
 
+func (s *MinIOStorage) isVideoMimeType(mimeType string) bool {
+	return strings.HasPrefix(strings.ToLower(mimeType), "video/")
+}
+
 func (s *MinIOStorage) UploadImage(fileData []byte, originalFilename string, contentType string) (string, error) {
 	if !s.isAllowedMimeType(contentType) {
 		return "", fmt.Errorf("invalid file type: %s (allowed: %v)", contentType, s.config.AllowedMimeTypes)
 	}
 
-	fileSizeMB := float64(len(fileData)) / (1024 * 1024)
-	if fileSizeMB > float64(s.config.MaxFileSizeMB) {
-		return "", fmt.Errorf("file size %.2fMB exceeds maximum allowed size of %dMB", fileSizeMB, s.config.MaxFileSizeMB)
+	maxSizeMB := float64(s.config.MaxFileSizeMB)
+	if s.isVideoMimeType(contentType) {
+		maxSizeMB = float64(s.config.MaxVideoFileSizeMB)
 	}
 
-	if err := s.validateImageDimensions(fileData); err != nil {
-		return "", err
+	fileSizeMB := float64(len(fileData)) / (1024 * 1024)
+	if fileSizeMB > maxSizeMB {
+		return "", fmt.Errorf("file size %.2fMB exceeds maximum allowed size of %.0fMB", fileSizeMB, maxSizeMB)
+	}
+
+	if !s.isVideoMimeType(contentType) {
+		if err := s.validateImageDimensions(fileData); err != nil {
+			return "", err
+		}
 	}
 
 	// Generate unique filename with UUID to avoid collisions and spaces
@@ -177,8 +188,16 @@ func (s *MinIOStorage) getExtensionFromMimeType(mimeType string) string {
 		return ".gif"
 	case "image/webp":
 		return ".webp"
+	case "video/mp4":
+		return ".mp4"
+	case "video/webm":
+		return ".webm"
+	case "video/ogg":
+		return ".ogv"
+	case "video/quicktime":
+		return ".mov"
 	default:
-		return ".jpg"
+		return ".bin"
 	}
 }
 

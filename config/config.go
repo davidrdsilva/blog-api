@@ -58,16 +58,22 @@ type ServerConfig struct {
 
 // UploadConfig holds file upload constraints
 type UploadConfig struct {
-	MaxFileSizeMB     int
-	MaxImageDimension int
-	AllowedMimeTypes  []string
+	MaxFileSizeMB      int
+	MaxVideoFileSizeMB int
+	MaxImageDimension  int
+	AllowedMimeTypes   []string
 }
 
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
-	maxFileSize, err := strconv.Atoi(getEnv("MAX_FILE_SIZE_MB", "5"))
+	maxFileSize, err := strconv.Atoi(getEnv("MAX_FILE_SIZE_MB", "50"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid MAX_FILE_SIZE_MB: %w", err)
+	}
+
+	maxVideoFileSize, err := strconv.Atoi(getEnv("MAX_VIDEO_FILE_SIZE_MB", "100"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid MAX_VIDEO_FILE_SIZE_MB: %w", err)
 	}
 
 	maxImageDim, err := strconv.Atoi(getEnv("MAX_IMAGE_DIMENSION", "4096"))
@@ -109,9 +115,13 @@ func Load() (*Config, error) {
 			CORSOrigins: parseCommaSeparated(getEnv("CORS_ORIGINS", "http://localhost:3000")),
 		},
 		Upload: UploadConfig{
-			MaxFileSizeMB:     maxFileSize,
-			MaxImageDimension: maxImageDim,
-			AllowedMimeTypes:  []string{"image/jpeg", "image/png", "image/gif", "image/webp"},
+			MaxFileSizeMB:      maxFileSize,
+			MaxVideoFileSizeMB: maxVideoFileSize,
+			MaxImageDimension:  maxImageDim,
+			AllowedMimeTypes: []string{
+				"image/jpeg", "image/png", "image/gif", "image/webp",
+				"video/mp4", "video/webm", "video/ogg", "video/quicktime",
+			},
 		},
 		Ollama: OllamaConfig{
 			BaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
