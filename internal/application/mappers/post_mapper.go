@@ -15,11 +15,11 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 		Subtitle:    post.Subtitle,
 		Description: post.Description,
 		Image:       post.Image,
-		Date:        post.Date.Format(time.RFC3339),
+		Date:        post.Date.In(brt).Format(time.RFC3339),
 		Author:      post.Author,
 		Content:     post.Content,
-		CreatedAt:   post.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   post.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   post.CreatedAt.In(brt).Format(time.RFC3339),
+		UpdatedAt:   post.UpdatedAt.In(brt).Format(time.RFC3339),
 	}
 }
 

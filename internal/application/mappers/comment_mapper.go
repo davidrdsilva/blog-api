@@ -7,13 +7,24 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/domain/models"
 )
 
+// brt is Brasilia Time (UTC-3), loaded once at package init.
+// pgx returns timestamptz values in UTC; we convert to BRT before formatting
+// so API responses match the timezone used by the database session.
+var brt = func() *time.Location {
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		loc = time.FixedZone("BRT", -3*60*60)
+	}
+	return loc
+}()
+
 func ToCommentResponse(comment *models.Comment) dtos.CommentResponse {
 	return dtos.CommentResponse{
 		ID:        comment.ID,
 		PostID:    comment.PostID,
 		Author:    comment.Author,
 		Content:   comment.Content,
-		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
+		CreatedAt: comment.CreatedAt.In(brt).Format(time.RFC3339),
 	}
 }
 
