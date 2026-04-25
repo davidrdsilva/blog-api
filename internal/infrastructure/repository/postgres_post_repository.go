@@ -66,6 +66,14 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 		query = query.Where("category_id = ?", *filters.CategoryID)
 	}
 
+	if filters.IsWhitenestChapter != nil {
+		if *filters.IsWhitenestChapter {
+			query = query.Where("whitenest_chapter_number IS NOT NULL")
+		} else {
+			query = query.Where("whitenest_chapter_number IS NULL")
+		}
+	}
+
 	// Apply tag-name filter (OR semantics: posts that have ANY of the named tags).
 	// We use a subquery (rather than JOIN) so the row count from the main query
 	// stays correct even when a post matches multiple tags.
@@ -96,10 +104,11 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 
 	// Validate and sanitize sort fields to prevent SQL injection
 	allowedSortFields := map[string]bool{
-		"date":      true,
-		"title":     true,
-		"createdAt": true,
-		"updatedAt": true,
+		"date":                     true,
+		"title":                    true,
+		"createdAt":                true,
+		"updatedAt":                true,
+		"whitenest_chapter_number": true,
 	}
 	if !allowedSortFields[sortBy] {
 		sortBy = "date"
@@ -274,6 +283,63 @@ func (r *PostgresPostRepository) FindSimilar(postID string, limit int) ([]*model
 		}
 	}
 	return ordered, nil
+}
+
+func (r *PostgresPostRepository) FindWhitenestChapterByNumber(number int) (*models.Post, error) {
+	var post models.Post
+	err := r.db.
+		Preload("Category").
+		Preload("Tags").
+		Where("whitenest_chapter_number = ?", number).
+		First(&post).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	return &post, err
+}
+
+// Tags/Category are intentionally omitted — the prev/next link cards only
+// need id, title, and chapter number.
+func (r *PostgresPostRepository) FindAdjacentWhitenestChapters(number int) (*models.Post, *models.Post, error) {
+	var previous, next *models.Post
+
+	var prev models.Post
+	err := r.db.
+		Where("whitenest_chapter_number IS NOT NULL AND whitenest_chapter_number < ?", number).
+		Order("whitenest_chapter_number DESC").
+		First(&prev).Error
+	if err == nil {
+		previous = &prev
+	} else if err != gorm.ErrRecordNotFound {
+		return nil, nil, fmt.Errorf("failed to fetch previous chapter: %w", err)
+	}
+
+	var nxt models.Post
+	err = r.db.
+		Where("whitenest_chapter_number IS NOT NULL AND whitenest_chapter_number > ?", number).
+		Order("whitenest_chapter_number ASC").
+		First(&nxt).Error
+	if err == nil {
+		next = &nxt
+	} else if err != gorm.ErrRecordNotFound {
+		return nil, nil, fmt.Errorf("failed to fetch next chapter: %w", err)
+	}
+
+	return previous, next, nil
+}
+
+func (r *PostgresPostRepository) MaxWhitenestChapterNumber() (int, error) {
+	var max *int
+	err := r.db.Model(&models.Post{}).
+		Select("MAX(whitenest_chapter_number)").
+		Scan(&max).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch max chapter number: %w", err)
+	}
+	if max == nil {
+		return 0, nil
+	}
+	return *max, nil
 }
 
 // ReplaceTags resets the tag set associated with a post. Used by Update so the

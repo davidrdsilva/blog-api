@@ -10,19 +10,39 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/domain/repositories"
 )
 
+// Matched as a substring by the comment handler to map to WHITENEST_COMMENTS_DISABLED.
+const errWhitenestCommentsDisabled = "comments are disabled for whitenest chapters"
+
 type CommentService struct {
-	repo repositories.CommentRepository
-	cfg  *config.Config
+	repo     repositories.CommentRepository
+	postRepo repositories.PostRepository
+	cfg      *config.Config
 }
 
-func NewCommentService(repo repositories.CommentRepository, cfg *config.Config) *CommentService {
+func NewCommentService(
+	repo repositories.CommentRepository,
+	postRepo repositories.PostRepository,
+	cfg *config.Config,
+) *CommentService {
 	return &CommentService{
-		repo: repo,
-		cfg:  cfg,
+		repo:     repo,
+		postRepo: postRepo,
+		cfg:      cfg,
 	}
 }
 
 func (s *CommentService) CreateComment(req dtos.CreateCommentRequest) (*dtos.CommentResponse, error) {
+	if s.postRepo != nil && req.PostID != "" {
+		post, err := s.postRepo.FindByID(req.PostID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify post: %w", err)
+		}
+		if post != nil && post.WhitenestChapterNumber != nil {
+			return nil, fmt.Errorf("%s: post %s is chapter %d",
+				errWhitenestCommentsDisabled, post.ID, *post.WhitenestChapterNumber)
+		}
+	}
+
 	comment := mappers.CreateCommentRequestToComment(req)
 	if err := s.repo.Create(comment); err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)

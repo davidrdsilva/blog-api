@@ -662,6 +662,65 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/whitenest/chapters/{number}": {
+            "get": {
+                "description": "Returns the chapter with the given serial number along with\nminimal references to the previous and next chapters, if any.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "whitenest"
+                ],
+                "summary": "Get a Whitenest chapter by number",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Chapter number (1-indexed)",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.WhitenestChapterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -804,6 +863,11 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 200,
                     "minLength": 1
+                },
+                "whitenest_chapter_number": {
+                    "description": "Auto-assigned to MAX+1 when omitted on a Whitenest post; rejected on others.",
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -946,6 +1010,9 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
+                },
+                "whitenest_chapter_number": {
+                    "type": "integer"
                 }
             }
         },
@@ -1035,6 +1102,38 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 200,
                     "minLength": 1
+                },
+                "whitenest_chapter_number": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "dtos.WhitenestChapterRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "whitenest_chapter_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.WhitenestChapterResponse": {
+            "type": "object",
+            "properties": {
+                "chapter": {
+                    "$ref": "#/definitions/dtos.PostResponse"
+                },
+                "next": {
+                    "$ref": "#/definitions/dtos.WhitenestChapterRef"
+                },
+                "previous": {
+                    "$ref": "#/definitions/dtos.WhitenestChapterRef"
                 }
             }
         },

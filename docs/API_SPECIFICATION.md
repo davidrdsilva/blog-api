@@ -50,6 +50,10 @@ interface Post {
     date: string;                  // ISO 8601 datetime
     author: string;                // Required, 1-100 characters
     content: EditorJsContent | null;
+    category_id: number;
+    tags: Tag[];
+    total_views: number;
+    whitenest_chapter_number?: number;  // Present iff this post is a Whitenest chapter
     createdAt: string;             // ISO 8601 datetime
     updatedAt: string;             // ISO 8601 datetime
 }
@@ -130,8 +134,11 @@ GET /api/posts
 | `limit` | integer | 6 | Items per page (max: 50) |
 | `search` | string | - | Search query (searches title, subtitle, description, content) |
 | `author` | string | - | Filter by author name |
-| `sortBy` | string | "date" | Sort field: "date", "title", "createdAt", "updatedAt" |
+| `sortBy` | string | "date" | Sort field: "date", "title", "createdAt", "updatedAt", "whitenest_chapter_number" |
 | `sortOrder` | string | "desc" | Sort order: "asc", "desc" |
+| `category_id` | integer | - | Filter by category ID |
+| `tags` | string[] | - | Filter by tag name (OR semantics; repeat or comma-join) |
+| `is_whitenest_chapter` | boolean | - | When `true`, only Whitenest chapters; when `false`, only non-chapters; omitted means no filter |
 
 **Response**
 
@@ -581,6 +588,97 @@ Error response format for Editor.js:
     }
 }
 ```
+
+---
+
+### Whitenest
+
+The Whitenest serial-fiction feature reuses the standard `Post` model with one
+extra column: `whitenest_chapter_number` (nullable, unique). The presence of a
+non-null number is the canonical signal that a post is a chapter — there is no
+separate boolean flag.
+
+Invariants enforced server-side:
+
+- `whitenest_chapter_number` may be set only on posts whose `category_id`
+  resolves to the seeded category named `"Whitenest"`. Mismatches return
+  HTTP 400 with code `WHITENEST_INVARIANT_VIOLATION`.
+- Creating or updating a post into the Whitenest category without a chapter
+  number triggers auto-assignment to `MAX(whitenest_chapter_number) + 1`.
+- Whitenest chapters never receive AI-generated comments. The dispatcher in
+  `PostService` skips them, and `AICommentService` re-checks the post inside
+  the worker as defense in depth.
+- `POST /api/comments` against a Whitenest chapter returns HTTP 403 with code
+  `WHITENEST_COMMENTS_DISABLED`.
+
+#### Get Chapter By Number
+
+Returns the chapter with the given serial number along with minimal references
+to the previous and next chapters, if any.
+
+```
+GET /api/whitenest/chapters/:number
+```
+
+**Path Parameters**
+
+| Parameter | Type    | Description                                  |
+|-----------|---------|----------------------------------------------|
+| `number`  | integer | 1-indexed chapter number (UNIQUE per chapter) |
+
+**Response**
+
+```json
+{
+    "data": {
+        "chapter": {
+            "id": "…",
+            "title": "The Letter",
+            "subtitle": "…",
+            "description": "…",
+            "image": "https://…",
+            "date": "2026-01-12T08:00:00Z",
+            "author": "M. R. Halloway",
+            "content": { "blocks": [ … ] },
+            "category_id": 7,
+            "category": { "id": 7, "name": "Whitenest" },
+            "tags": [ { "id": "…", "name": "mystery" } ],
+            "total_views": 0,
+            "whitenest_chapter_number": 1,
+            "createdAt": "…",
+            "updatedAt": "…"
+        },
+        "previous": null,
+        "next": {
+            "id": "…",
+            "title": "The Drive North",
+            "whitenest_chapter_number": 2
+        }
+    }
+}
+```
+
+`previous` and `next` are `null` at the extremes of the series. Reading a
+chapter increments `total_views` through the same async pipeline used by the
+generic post endpoint.
+
+**Error Responses**
+
+| Status | Code                      | Meaning                                    |
+|--------|---------------------------|--------------------------------------------|
+| 400    | `INVALID_CHAPTER_NUMBER`  | Path segment was not a positive integer    |
+| 404    | `CHAPTER_NOT_FOUND`       | No chapter has the requested number        |
+| 500    | `INTERNAL_ERROR`          | Unexpected database or downstream failure  |
+
+#### Latest Chapter
+
+There is no dedicated "latest" endpoint — call:
+
+```
+GET /api/posts?is_whitenest_chapter=true&sortBy=whitenest_chapter_number&sortOrder=desc&limit=1
+```
+
+and read `data[0]`.
 
 ---
 

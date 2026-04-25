@@ -12,6 +12,9 @@ type CategoryRepository interface {
 	// FindByID retrieves a category by its integer ID.
 	FindByID(id int) (*models.Category, error)
 
+	// Case-insensitive. Returns (nil, nil) when no row matches.
+	FindByName(name string) (*models.Category, error)
+
 	// Exists returns whether a category with the given ID exists.
 	Exists(id int) (bool, error)
 

@@ -10,9 +10,13 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/application/mappers"
 	"github.com/davidrdsilva/blog-api/internal/domain/models"
 	"github.com/davidrdsilva/blog-api/internal/domain/repositories"
+	"github.com/davidrdsilva/blog-api/internal/infrastructure/database"
 	"github.com/davidrdsilva/blog-api/internal/infrastructure/logging"
 	"github.com/google/uuid"
 )
+
+// Matched as a substring by the post handler to map to WHITENEST_INVARIANT_VIOLATION.
+const errWhitenestMismatch = "whitenest invariant: chapter number requires Whitenest category"
 
 // PostService handles business logic for posts
 type PostService struct {
@@ -51,13 +55,27 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 		return nil, fmt.Errorf("invalid image URL: %w", err)
 	}
 
-	// Reject category IDs that don't resolve to a real row before persisting.
-	exists, err := s.categoryRepo.Exists(req.CategoryID)
+	cat, err := s.categoryRepo.FindByID(req.CategoryID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify category: %w", err)
 	}
-	if !exists {
+	if cat == nil {
 		return nil, fmt.Errorf("invalid category: category %d does not exist", req.CategoryID)
+	}
+	isWhitenestCategory := strings.EqualFold(cat.Name, database.WhitenestCategoryName)
+
+	if req.WhitenestChapterNumber != nil && !isWhitenestCategory {
+		return nil, fmt.Errorf("%s: provided number=%d on category=%q",
+			errWhitenestMismatch, *req.WhitenestChapterNumber, cat.Name)
+	}
+
+	if isWhitenestCategory && req.WhitenestChapterNumber == nil {
+		max, err := s.repo.MaxWhitenestChapterNumber()
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign next chapter number: %w", err)
+		}
+		next := max + 1
+		req.WhitenestChapterNumber = &next
 	}
 
 	// Convert DTO to domain model
@@ -89,24 +107,28 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 		saved = post
 	}
 
-	// Dispatch AI comment generation asynchronously (non-blocking)
-	if s.jobCh != nil {
-		select {
-		case s.jobCh <- jobs.GenerateCommentsJob{
-			PostID:  saved.ID,
-			Title:   saved.Title,
-			Content: saved.Content,
-		}:
-			s.logger.Debug("AI comment job created", logging.F("postId", saved.ID))
-		default:
-			// Worker is behind and the buffer is full — drop the job rather than
-			// blocking the HTTP response. The post is already saved successfully.
-			s.logger.Warn("AI comment job dropped: job channel full", logging.F("postId", saved.ID))
-		}
+	if saved.WhitenestChapterNumber == nil {
+		s.dispatchAICommentJob(saved)
 	}
 
 	response := mappers.ToPostResponse(saved)
 	return &response, nil
+}
+
+func (s *PostService) dispatchAICommentJob(post *models.Post) {
+	if s.jobCh == nil {
+		return
+	}
+	select {
+	case s.jobCh <- jobs.GenerateCommentsJob{
+		PostID:  post.ID,
+		Title:   post.Title,
+		Content: post.Content,
+	}:
+		s.logger.Debug("AI comment job created", logging.F("postId", post.ID))
+	default:
+		s.logger.Warn("AI comment job dropped: job channel full", logging.F("postId", post.ID))
+	}
 }
 
 func (s *PostService) GetPost(id string) (*dtos.PostResponse, error) {
@@ -202,22 +224,44 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		}
 	}
 
-	if req.CategoryID != nil {
-		exists, err := s.categoryRepo.Exists(*req.CategoryID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to verify category: %w", err)
-		}
-		if !exists {
-			return nil, fmt.Errorf("invalid category: category %d does not exist", *req.CategoryID)
-		}
-	}
-
 	post, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch post: %w", err)
 	}
 	if post == nil {
 		return nil, nil
+	}
+
+	// Re-validate the invariant against the post-update state.
+	effectiveCategoryID := post.CategoryID
+	if req.CategoryID != nil {
+		effectiveCategoryID = *req.CategoryID
+	}
+	cat, err := s.categoryRepo.FindByID(effectiveCategoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify category: %w", err)
+	}
+	if cat == nil {
+		return nil, fmt.Errorf("invalid category: category %d does not exist", effectiveCategoryID)
+	}
+	isWhitenestCategory := strings.EqualFold(cat.Name, database.WhitenestCategoryName)
+
+	effectiveChapterNumber := post.WhitenestChapterNumber
+	if req.WhitenestChapterNumber != nil {
+		effectiveChapterNumber = req.WhitenestChapterNumber
+	}
+
+	if effectiveChapterNumber != nil && !isWhitenestCategory {
+		return nil, fmt.Errorf("%s: post would have number=%d on category=%q",
+			errWhitenestMismatch, *effectiveChapterNumber, cat.Name)
+	}
+	if isWhitenestCategory && effectiveChapterNumber == nil {
+		max, err := s.repo.MaxWhitenestChapterNumber()
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign next chapter number: %w", err)
+		}
+		next := max + 1
+		req.WhitenestChapterNumber = &next
 	}
 
 	// Apply updates
@@ -244,18 +288,8 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("failed to fetch updated post: %w", err)
 	}
 
-	// Only regenerate comments when the post body itself changed.
-	if req.Content != nil && s.jobCh != nil {
-		select {
-		case s.jobCh <- jobs.GenerateCommentsJob{
-			PostID:  updatedPost.ID,
-			Title:   updatedPost.Title,
-			Content: updatedPost.Content,
-		}:
-			s.logger.Debug("AI comment job created for updated post", logging.F("postId", updatedPost.ID))
-		default:
-			s.logger.Warn("AI comment job dropped: job channel full", logging.F("postId", updatedPost.ID))
-		}
+	if req.Content != nil && updatedPost.WhitenestChapterNumber == nil {
+		s.dispatchAICommentJob(updatedPost)
 	}
 
 	response := mappers.ToPostResponse(updatedPost)

@@ -71,6 +71,16 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 			return
 		}
 
+		if containsStr(err.Error(), "comments are disabled for whitenest chapters") {
+			c.JSON(http.StatusForbidden, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "WHITENEST_COMMENTS_DISABLED",
+					Message: "Comments are disabled for Whitenest chapters",
+				},
+			})
+			return
+		}
+
 		h.logger.Error("Failed to create comment", logging.F("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
 			Error: dtos.ErrorDetail{

@@ -91,7 +91,7 @@ func main() {
 		logger.Info("GEMINI_API_KEY not set, using Ollama only")
 	}
 
-	aiCommentService := services.NewAICommentService(aiClient, commentRepo, logger)
+	aiCommentService := services.NewAICommentService(aiClient, commentRepo, postRepo, logger)
 	commentWorker := workers.NewCommentWorker(jobCh, aiCommentService, logger)
 	commentWorker.Start(ctx)
 
@@ -106,9 +106,10 @@ func main() {
 	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, cfg, jobCh, viewCh, logger)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
-	commentService := services.NewCommentService(commentRepo, cfg)
+	commentService := services.NewCommentService(commentRepo, postRepo, cfg)
 	categoryService := services.NewCategoryService(categoryRepo)
 	tagService := services.NewTagService(tagRepo)
+	whitenestService := services.NewWhitenestService(postRepo, viewCh, logger)
 
 	// Initialize handlers
 	postHandler := handlers.NewPostHandler(postService, logger)
@@ -117,6 +118,7 @@ func main() {
 	commentHandler := handlers.NewCommentHandler(commentService, logger)
 	categoryHandler := handlers.NewCategoryHandler(categoryService, logger)
 	tagHandler := handlers.NewTagHandler(tagService, logger)
+	whitenestHandler := handlers.NewWhitenestHandler(whitenestService, logger)
 
 	// Setup router
 	r := router.SetupRouter(
@@ -126,6 +128,7 @@ func main() {
 		commentHandler,
 		categoryHandler,
 		tagHandler,
+		whitenestHandler,
 		logger,
 		cfg.Server.CORSOrigins,
 	)

@@ -21,6 +21,9 @@ type Post struct {
 	Category    *Category        `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
 	Tags        []Tag            `gorm:"many2many:posts_tags;" json:"tags,omitempty"`
 	TotalViews  int              `gorm:"not null;default:0" json:"total_views"`
+	// Non-nil only for Whitenest chapters. Presence is the canonical signal —
+	// there is no separate boolean flag.
+	WhitenestChapterNumber *int `gorm:"uniqueIndex" json:"whitenest_chapter_number,omitempty"`
 	Comments    []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
 	CreatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
 	UpdatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`
@@ -49,10 +52,12 @@ type PostFilters struct {
 	Author     string
 	CategoryID *int
 	TagNames   []string
-	SortBy     string // "date", "title", "createdAt", "updatedAt"
-	SortOrder  string // "asc", "desc"
-	Page       int
-	Limit      int
+	// nil = no filter, true = only chapters, false = only non-chapters.
+	IsWhitenestChapter *bool
+	SortBy             string // "date", "title", "createdAt", "updatedAt", "whitenest_chapter_number"
+	SortOrder          string // "asc", "desc"
+	Page               int
+	Limit              int
 }
 
 // PaginationMeta holds pagination metadata

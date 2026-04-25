@@ -42,4 +42,13 @@ type PostRepository interface {
 	// source post is always excluded. If the source has no tags, returns an
 	// empty slice.
 	FindSimilar(postID string, limit int) ([]*models.Post, error)
+
+	// Returns (nil, nil) when no chapter has that number.
+	FindWhitenestChapterByNumber(number int) (*models.Post, error)
+
+	// Either side may be nil at the extremes of the series.
+	FindAdjacentWhitenestChapters(number int) (previous, next *models.Post, err error)
+
+	// Returns 0 when no chapters exist yet.
+	MaxWhitenestChapterNumber() (int, error)
 }

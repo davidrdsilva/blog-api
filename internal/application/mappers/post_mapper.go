@@ -21,20 +21,33 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 	}
 
 	return dtos.PostResponse{
-		ID:          post.ID,
-		Title:       post.Title,
-		Subtitle:    post.Subtitle,
-		Description: post.Description,
-		Image:       post.Image,
-		Date:        post.Date.In(brt).Format(time.RFC3339),
-		Author:      post.Author,
-		Content:     post.Content,
-		CategoryID:  post.CategoryID,
-		Category:    categoryDTO,
-		Tags:        tags,
-		TotalViews:  post.TotalViews,
-		CreatedAt:   post.CreatedAt.In(brt).Format(time.RFC3339),
-		UpdatedAt:   post.UpdatedAt.In(brt).Format(time.RFC3339),
+		ID:                     post.ID,
+		Title:                  post.Title,
+		Subtitle:               post.Subtitle,
+		Description:            post.Description,
+		Image:                  post.Image,
+		Date:                   post.Date.In(brt).Format(time.RFC3339),
+		Author:                 post.Author,
+		Content:                post.Content,
+		CategoryID:             post.CategoryID,
+		Category:               categoryDTO,
+		Tags:                   tags,
+		TotalViews:             post.TotalViews,
+		WhitenestChapterNumber: post.WhitenestChapterNumber,
+		CreatedAt:              post.CreatedAt.In(brt).Format(time.RFC3339),
+		UpdatedAt:              post.UpdatedAt.In(brt).Format(time.RFC3339),
+	}
+}
+
+// Returns nil when post is nil or not a chapter.
+func ToWhitenestChapterRef(post *models.Post) *dtos.WhitenestChapterRef {
+	if post == nil || post.WhitenestChapterNumber == nil {
+		return nil
+	}
+	return &dtos.WhitenestChapterRef{
+		ID:                     post.ID,
+		Title:                  post.Title,
+		WhitenestChapterNumber: *post.WhitenestChapterNumber,
 	}
 }
 
@@ -59,15 +72,16 @@ func CreatePostRequestToPost(req dtos.CreatePostRequest) *models.Post {
 	}
 
 	return &models.Post{
-		Title:       req.Title,
-		Subtitle:    req.Subtitle,
-		Description: req.Description,
-		Image:       req.Image,
-		Author:      req.Author,
-		Content:     req.Content,
-		Date:        postDate,
-		UpdatedAt:   postDate,
-		CategoryID:  req.CategoryID,
+		Title:                  req.Title,
+		Subtitle:               req.Subtitle,
+		Description:            req.Description,
+		Image:                  req.Image,
+		Author:                 req.Author,
+		Content:                req.Content,
+		Date:                   postDate,
+		UpdatedAt:              postDate,
+		CategoryID:             req.CategoryID,
+		WhitenestChapterNumber: req.WhitenestChapterNumber,
 	}
 }
 
@@ -92,5 +106,8 @@ func UpdatePostRequestToPost(post *models.Post, req dtos.UpdatePostRequest) {
 	}
 	if req.CategoryID != nil {
 		post.CategoryID = *req.CategoryID
+	}
+	if req.WhitenestChapterNumber != nil {
+		post.WhitenestChapterNumber = req.WhitenestChapterNumber
 	}
 }

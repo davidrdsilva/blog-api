@@ -17,6 +17,7 @@ func SetupRouter(
 	commentHandler *handlers.CommentHandler,
 	categoryHandler *handlers.CategoryHandler,
 	tagHandler *handlers.TagHandler,
+	whitenestHandler *handlers.WhitenestHandler,
 	logger *logging.Logger,
 	corsOrigins []string,
 ) *gin.Engine {
@@ -53,6 +54,9 @@ func SetupRouter(
 		// Category and tag endpoints
 		api.GET("/categories", categoryHandler.ListCategories)
 		api.GET("/tags", tagHandler.ListTags)
+
+		// Whitenest serial-fiction endpoints
+		api.GET("/whitenest/chapters/:number", whitenestHandler.GetChapter)
 
 		// Upload endpoint
 		api.POST("/upload", uploadHandler.UploadImage)

@@ -14,6 +14,8 @@ import (
 // the introduction of the category column.
 const defaultCategoryName = "News"
 
+const WhitenestCategoryName = "Whitenest"
+
 // NewPostgresDB creates a new PostgreSQL database connection
 func NewPostgresDB(dsn string, log *logging.Logger) (*gorm.DB, error) {
 	log.Info("Connecting to PostgreSQL database...")
@@ -69,12 +71,56 @@ func RunMigrations(db *gorm.DB, log *logging.Logger) error {
 		return fmt.Errorf("failed to migrate posts/comments: %w", err)
 	}
 
+	if err := seedWhitenestCategory(db, log); err != nil {
+		return err
+	}
+	if err := stageWhitenestChapterColumn(db, log); err != nil {
+		return err
+	}
+
 	log.Info("Database migrations completed successfully")
 
 	if err := createIndexes(db, log); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func seedWhitenestCategory(db *gorm.DB, log *logging.Logger) error {
+	var count int64
+	if err := db.Model(&models.Category{}).Where("name = ?", WhitenestCategoryName).Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check Whitenest category: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+	if err := db.Create(&models.Category{Name: WhitenestCategoryName}).Error; err != nil {
+		return fmt.Errorf("failed to create Whitenest category: %w", err)
+	}
+	log.Info("Seeded Whitenest category", logging.F("name", WhitenestCategoryName))
+	return nil
+}
+
+// stageWhitenestChapterColumn (re)asserts the column and its partial unique
+// index. AutoMigrate handles fresh databases; this guards existing instances
+// picking up the field for the first time.
+func stageWhitenestChapterColumn(db *gorm.DB, log *logging.Logger) error {
+	if err := db.Exec(
+		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS whitenest_chapter_number INTEGER`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to add posts.whitenest_chapter_number: %w", err)
+	}
+
+	if err := db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_whitenest_chapter_number
+		ON posts(whitenest_chapter_number)
+		WHERE whitenest_chapter_number IS NOT NULL
+	`).Error; err != nil {
+		return fmt.Errorf("failed to create whitenest_chapter_number unique index: %w", err)
+	}
+
+	log.Info("posts.whitenest_chapter_number staged migration applied")
 	return nil
 }
 

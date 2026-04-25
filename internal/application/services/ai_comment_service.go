@@ -23,24 +23,50 @@ type commentEntry struct {
 type AICommentService struct {
 	ollamaClient ai.AIClient
 	commentRepo  repositories.CommentRepository
+	postRepo     repositories.PostRepository
 	logger       *logging.Logger
 }
 
 func NewAICommentService(
 	client ai.AIClient,
 	commentRepo repositories.CommentRepository,
+	postRepo repositories.PostRepository,
 	logger *logging.Logger,
 ) *AICommentService {
 	return &AICommentService{
 		ollamaClient: client,
 		commentRepo:  commentRepo,
+		postRepo:     postRepo,
 		logger:       logger,
 	}
 }
 
 // GenerateAndSave builds a prompt from the job, calls the AI client, and
 // persists all generated comments in a single transaction. Called by CommentWorker.
+//
+// Re-fetches the post to filter out Whitenest chapters so backfills, retries,
+// or future enqueue paths can't slip past the dispatcher's skip.
 func (s *AICommentService) GenerateAndSave(ctx context.Context, job jobs.GenerateCommentsJob) error {
+	if s.postRepo != nil {
+		post, err := s.postRepo.FindByID(job.PostID)
+		if err != nil {
+			return fmt.Errorf("failed to load post for AI comment job: %w", err)
+		}
+		if post == nil {
+			s.logger.Warn("AI comment job dropped: post no longer exists",
+				logging.F("postId", job.PostID),
+			)
+			return nil
+		}
+		if post.WhitenestChapterNumber != nil {
+			s.logger.Info("AI comment job skipped: Whitenest chapter",
+				logging.F("postId", job.PostID),
+				logging.F("chapter", *post.WhitenestChapterNumber),
+			)
+			return nil
+		}
+	}
+
 	text := extractPlainText(job.Content)
 	imageURLs := extractImageURLs(job.Content)
 

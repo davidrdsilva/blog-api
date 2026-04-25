@@ -42,6 +42,15 @@ func (r *PostgresCategoryRepository) FindByID(id int) (*models.Category, error) 
 	return &category, err
 }
 
+func (r *PostgresCategoryRepository) FindByName(name string) (*models.Category, error) {
+	var category models.Category
+	err := r.db.Where("LOWER(name) = LOWER(?)", strings.TrimSpace(name)).First(&category).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	return &category, err
+}
+
 func (r *PostgresCategoryRepository) Exists(id int) (bool, error) {
 	var count int64
 	err := r.db.Model(&models.Category{}).Where("id = ?", id).Count(&count).Error

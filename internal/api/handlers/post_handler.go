@@ -77,6 +77,16 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 			return
 		}
 
+		if containsStr(err.Error(), "whitenest invariant") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "WHITENEST_INVARIANT_VIOLATION",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
 			Error: dtos.ErrorDetail{
 				Code:    "INTERNAL_ERROR",
@@ -170,6 +180,16 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 	if categoryStr := c.Query("category_id"); categoryStr != "" {
 		if cid, err := strconv.Atoi(categoryStr); err == nil && cid > 0 {
 			filters.CategoryID = &cid
+		}
+	}
+
+	// Whitenest chapters live behind /api/whitenest/chapters/:number — exclude
+	// them from the generic feed unless the caller explicitly opts in.
+	excludeChapters := false
+	filters.IsWhitenestChapter = &excludeChapters
+	if v := c.Query("is_whitenest_chapter"); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			filters.IsWhitenestChapter = &parsed
 		}
 	}
 
@@ -303,6 +323,16 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
 				Error: dtos.ErrorDetail{
 					Code:    "INVALID_CATEGORY",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
+		if containsStr(err.Error(), "whitenest invariant") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "WHITENEST_INVARIANT_VIOLATION",
 					Message: err.Error(),
 				},
 			})
