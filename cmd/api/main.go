@@ -68,6 +68,8 @@ func main() {
 	// Initialize repositories
 	postRepo := repository.NewPostgresPostRepository(db)
 	commentRepo := repository.NewPostgresCommentRepository(db)
+	categoryRepo := repository.NewPostgresCategoryRepository(db)
+	tagRepo := repository.NewPostgresTagRepository(db)
 
 	// Set up the AI comment generation pipeline:
 	//   PostService -> jobCh -> CommentWorker -> AICommentService -> Gemini (Ollama fallback) -> DB
@@ -94,19 +96,32 @@ func main() {
 	commentWorker.Start(ctx)
 
 	// Initialize services
-	postService := services.NewPostService(postRepo, cfg, jobCh, logger)
+	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, cfg, jobCh, logger)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
 	commentService := services.NewCommentService(commentRepo, cfg)
+	categoryService := services.NewCategoryService(categoryRepo)
+	tagService := services.NewTagService(tagRepo)
 
 	// Initialize handlers
 	postHandler := handlers.NewPostHandler(postService, logger)
 	uploadHandler := handlers.NewUploadHandler(uploadService, logger)
 	urlHandler := handlers.NewURLHandler(urlService, logger)
 	commentHandler := handlers.NewCommentHandler(commentService, logger)
+	categoryHandler := handlers.NewCategoryHandler(categoryService, logger)
+	tagHandler := handlers.NewTagHandler(tagService, logger)
 
 	// Setup router
-	r := router.SetupRouter(postHandler, uploadHandler, urlHandler, commentHandler, logger, cfg.Server.CORSOrigins)
+	r := router.SetupRouter(
+		postHandler,
+		uploadHandler,
+		urlHandler,
+		commentHandler,
+		categoryHandler,
+		tagHandler,
+		logger,
+		cfg.Server.CORSOrigins,
+	)
 
 	// Create HTTP server
 	srv := &http.Server{

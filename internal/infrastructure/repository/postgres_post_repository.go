@@ -28,7 +28,11 @@ func (r *PostgresPostRepository) Create(post *models.Post) error {
 // FindByID retrieves a post by its UUID
 func (r *PostgresPostRepository) FindByID(id string) (*models.Post, error) {
 	var post models.Post
-	err := r.db.Where("id = ?", id).First(&post).Error
+	err := r.db.
+		Preload("Category").
+		Preload("Tags").
+		Where("id = ?", id).
+		First(&post).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
@@ -55,6 +59,24 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 	// Apply author filter
 	if filters.Author != "" {
 		query = query.Where("author = ?", filters.Author)
+	}
+
+	// Apply category filter
+	if filters.CategoryID != nil {
+		query = query.Where("category_id = ?", *filters.CategoryID)
+	}
+
+	// Apply tag-name filter (OR semantics: posts that have ANY of the named tags).
+	// We use a subquery (rather than JOIN) so the row count from the main query
+	// stays correct even when a post matches multiple tags.
+	if names := normalizeTagFilterNames(filters.TagNames); len(names) > 0 {
+		query = query.Where(
+			"id IN (?)",
+			r.db.Table("posts_tags AS pt").
+				Select("pt.post_id").
+				Joins("JOIN tags AS t ON t.id = pt.tag_id").
+				Where("LOWER(t.name) IN ?", names),
+		)
 	}
 
 	// Count total records
@@ -108,8 +130,8 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 	offset := (page - 1) * limit
 	query = query.Offset(offset).Limit(limit)
 
-	// Execute query
-	if err := query.Find(&posts).Error; err != nil {
+	// Execute query (preload category + tags so the list view can show them).
+	if err := query.Preload("Category").Preload("Tags").Find(&posts).Error; err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch posts: %w", err)
 	}
 
@@ -159,6 +181,20 @@ func (r *PostgresPostRepository) Exists(id string) (bool, error) {
 	return count > 0, err
 }
 
+// ReplaceTags resets the tag set associated with a post. Used by Update so the
+// caller can supply a full replacement list of tags.
+func (r *PostgresPostRepository) ReplaceTags(postID string, tags []*models.Tag) error {
+	target := &models.Post{ID: postID}
+	tagSlice := make([]models.Tag, len(tags))
+	for i, t := range tags {
+		tagSlice[i] = *t
+	}
+	if err := r.db.Model(target).Association("Tags").Replace(tagSlice); err != nil {
+		return fmt.Errorf("failed to replace tags: %w", err)
+	}
+	return nil
+}
+
 // camelToSnake converts camelCase to snake_case
 func camelToSnake(s string) string {
 	var result strings.Builder
@@ -169,4 +205,23 @@ func camelToSnake(s string) string {
 		result.WriteRune(char)
 	}
 	return strings.ToLower(result.String())
+}
+
+// normalizeTagFilterNames lowercases and dedupes filter values, dropping empties.
+func normalizeTagFilterNames(names []string) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		trimmed := strings.TrimSpace(n)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	return out
 }

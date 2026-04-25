@@ -10,6 +10,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// defaultCategoryName is the seed category used to backfill posts that pre-date
+// the introduction of the category column.
+const defaultCategoryName = "News"
+
 // NewPostgresDB creates a new PostgreSQL database connection
 func NewPostgresDB(dsn string, log *logging.Logger) (*gorm.DB, error) {
 	log.Info("Connecting to PostgreSQL database...")
@@ -42,21 +46,105 @@ func NewPostgresDB(dsn string, log *logging.Logger) (*gorm.DB, error) {
 func RunMigrations(db *gorm.DB, log *logging.Logger) error {
 	log.Info("Running database migrations...")
 
-	err := db.AutoMigrate(
-		&models.Post{},
-		&models.Comment{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
+	// Categories and tags must exist before we can wire them into posts.
+	if err := db.AutoMigrate(&models.Category{}, &models.Tag{}); err != nil {
+		return fmt.Errorf("failed to migrate categories/tags: %w", err)
+	}
+
+	// Use an explicit join model with its own UUID primary key so the join row
+	// is addressable on its own (matches the spec's posts_tags ER diagram).
+	if err := db.SetupJoinTable(&models.Post{}, "Tags", &models.PostsTag{}); err != nil {
+		return fmt.Errorf("failed to setup posts_tags join: %w", err)
+	}
+
+	// Stage the category column on posts before AutoMigrating Post, because the
+	// model declares category_id as NOT NULL — running AutoMigrate against an
+	// existing posts table with rows would fail if the column were added with a
+	// NOT NULL constraint up front.
+	if err := stageCategoryColumnOnPosts(db, log); err != nil {
+		return err
+	}
+
+	if err := db.AutoMigrate(&models.Post{}, &models.Comment{}); err != nil {
+		return fmt.Errorf("failed to migrate posts/comments: %w", err)
 	}
 
 	log.Info("Database migrations completed successfully")
 
-	// Create indexes for better query performance
 	if err := createIndexes(db, log); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// stageCategoryColumnOnPosts adds posts.category_id in three idempotent steps:
+//  1. add the column as NULL (safe on a populated table),
+//  2. seed the default "News" category and backfill existing rows,
+//  3. flip the column to NOT NULL and add the FK to categories.
+//
+// Each step is guarded so re-running migrations on an already-migrated database
+// is a no-op.
+func stageCategoryColumnOnPosts(db *gorm.DB, log *logging.Logger) error {
+	// Skip the whole staged dance if there is no posts table yet — the next
+	// AutoMigrate will create it with the column already in its final shape.
+	hasPosts := db.Migrator().HasTable(&models.Post{})
+	if !hasPosts {
+		return seedDefaultCategory(db, log)
+	}
+
+	// Step 1: add the column as nullable (idempotent).
+	if err := db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS category_id INTEGER`).Error; err != nil {
+		return fmt.Errorf("failed to add posts.category_id: %w", err)
+	}
+
+	// Step 2: seed the default category and backfill any rows still missing it.
+	if err := seedDefaultCategory(db, log); err != nil {
+		return err
+	}
+
+	var defaultCat models.Category
+	if err := db.Where("name = ?", defaultCategoryName).First(&defaultCat).Error; err != nil {
+		return fmt.Errorf("failed to load default category: %w", err)
+	}
+
+	if err := db.Exec(
+		`UPDATE posts SET category_id = ? WHERE category_id IS NULL`,
+		defaultCat.ID,
+	).Error; err != nil {
+		return fmt.Errorf("failed to backfill posts.category_id: %w", err)
+	}
+
+	// Step 3: enforce NOT NULL + FK now that no rows are missing the value.
+	if err := db.Exec(`ALTER TABLE posts ALTER COLUMN category_id SET NOT NULL`).Error; err != nil {
+		return fmt.Errorf("failed to set NOT NULL on posts.category_id: %w", err)
+	}
+
+	if err := db.Exec(`
+		ALTER TABLE posts DROP CONSTRAINT IF EXISTS fk_posts_category;
+		ALTER TABLE posts ADD CONSTRAINT fk_posts_category
+			FOREIGN KEY (category_id) REFERENCES categories(id);
+	`).Error; err != nil {
+		return fmt.Errorf("failed to set FK on posts.category_id: %w", err)
+	}
+
+	log.Info("posts.category_id staged migration applied")
+	return nil
+}
+
+// seedDefaultCategory inserts the "News" row if it doesn't already exist.
+func seedDefaultCategory(db *gorm.DB, log *logging.Logger) error {
+	var count int64
+	if err := db.Model(&models.Category{}).Where("name = ?", defaultCategoryName).Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check default category: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+	if err := db.Create(&models.Category{Name: defaultCategoryName}).Error; err != nil {
+		return fmt.Errorf("failed to create default category: %w", err)
+	}
+	log.Info("Seeded default category", logging.F("name", defaultCategoryName))
 	return nil
 }
 
@@ -82,8 +170,8 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 	// Full-text search index on searchable fields
 	// Create a computed column for full-text search
 	if err := db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_posts_search ON posts 
-		USING GIN(to_tsvector('english', 
+		CREATE INDEX IF NOT EXISTS idx_posts_search ON posts
+		USING GIN(to_tsvector('english',
 			title || ' ' || COALESCE(subtitle, '') || ' ' || description
 		))
 	`).Error; err != nil {
@@ -99,6 +187,38 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 			FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
 	`).Error; err != nil {
 		return fmt.Errorf("failed to set cascade delete on comments: %w", err)
+	}
+
+	// Cascade post deletes through the join table so removing a post doesn't
+	// leave dangling posts_tags rows.
+	if err := db.Exec(`
+		ALTER TABLE posts_tags DROP CONSTRAINT IF EXISTS fk_posts_tags_post;
+		ALTER TABLE posts_tags ADD CONSTRAINT fk_posts_tags_post
+			FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+		ALTER TABLE posts_tags DROP CONSTRAINT IF EXISTS fk_posts_tags_tag;
+		ALTER TABLE posts_tags ADD CONSTRAINT fk_posts_tags_tag
+			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE;
+	`).Error; err != nil {
+		return fmt.Errorf("failed to set cascade on posts_tags: %w", err)
+	}
+
+	// Prevent duplicate (post, tag) pairs.
+	if err := db.Exec(
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_tags_post_tag ON posts_tags(post_id, tag_id)`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to create posts_tags unique index: %w", err)
+	}
+
+	// Speed up category-name and tag-name lookups (case-insensitive search).
+	if err := db.Exec(
+		`CREATE INDEX IF NOT EXISTS idx_categories_name_lower ON categories(LOWER(name))`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to create categories name index: %w", err)
+	}
+	if err := db.Exec(
+		`CREATE INDEX IF NOT EXISTS idx_tags_name_lower ON tags(LOWER(name))`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to create tags name index: %w", err)
 	}
 
 	log.Info("Database indexes created successfully")

@@ -24,4 +24,8 @@ type PostRepository interface {
 
 	// Exists checks if a post with the given ID exists
 	Exists(id string) (bool, error)
+
+	// ReplaceTags fully replaces the set of tags associated with a post.
+	// Used by updates that include a tags array.
+	ReplaceTags(postID string, tags []*models.Tag) error
 }

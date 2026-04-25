@@ -9,6 +9,17 @@ import (
 
 // ToPostResponse converts a domain Post to a PostResponse DTO
 func ToPostResponse(post *models.Post) dtos.PostResponse {
+	var categoryDTO *dtos.CategoryResponse
+	if post.Category != nil {
+		c := ToCategoryResponse(post.Category)
+		categoryDTO = &c
+	}
+
+	tags := ToTagResponses(post.Tags)
+	if tags == nil {
+		tags = []dtos.TagResponse{}
+	}
+
 	return dtos.PostResponse{
 		ID:          post.ID,
 		Title:       post.Title,
@@ -18,6 +29,9 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 		Date:        post.Date.In(brt).Format(time.RFC3339),
 		Author:      post.Author,
 		Content:     post.Content,
+		CategoryID:  post.CategoryID,
+		Category:    categoryDTO,
+		Tags:        tags,
 		CreatedAt:   post.CreatedAt.In(brt).Format(time.RFC3339),
 		UpdatedAt:   post.UpdatedAt.In(brt).Format(time.RFC3339),
 	}
@@ -52,6 +66,7 @@ func CreatePostRequestToPost(req dtos.CreatePostRequest) *models.Post {
 		Content:     req.Content,
 		Date:        postDate,
 		UpdatedAt:   postDate,
+		CategoryID:  req.CategoryID,
 	}
 }
 
@@ -73,5 +88,8 @@ func UpdatePostRequestToPost(post *models.Post, req dtos.UpdatePostRequest) {
 	}
 	if req.Date != nil {
 		post.Date = *req.Date
+	}
+	if req.CategoryID != nil {
+		post.CategoryID = *req.CategoryID
 	}
 }

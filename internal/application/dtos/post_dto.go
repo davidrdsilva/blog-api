@@ -15,6 +15,8 @@ type CreatePostRequest struct {
 	Author      string                  `json:"author" binding:"required,min=1,max=100"`
 	Content     *models.EditorJsContent `json:"content"`
 	Date        *time.Time              `json:"date" binding:"omitempty"`
+	CategoryID  int                     `json:"category_id" binding:"required,min=1"`
+	Tags        []string                `json:"tags" binding:"omitempty,dive,min=1,max=60"`
 }
 
 // UpdatePostRequest represents the request body for updating a post
@@ -25,6 +27,9 @@ type UpdatePostRequest struct {
 	Image       *string                 `json:"image" binding:"omitempty,url"`
 	Content     *models.EditorJsContent `json:"content"`
 	Date        *time.Time              `json:"date" binding:"omitempty"`
+	CategoryID  *int                    `json:"category_id" binding:"omitempty,min=1"`
+	// Tags is treated as a full replacement when present (nil means "leave as is").
+	Tags *[]string `json:"tags" binding:"omitempty,dive,min=1,max=60"`
 }
 
 // PostResponse represents a single post in API responses
@@ -37,6 +42,9 @@ type PostResponse struct {
 	Date        string                  `json:"date"`
 	Author      string                  `json:"author"`
 	Content     *models.EditorJsContent `json:"content"`
+	CategoryID  int                     `json:"category_id"`
+	Category    *CategoryResponse       `json:"category,omitempty"`
+	Tags        []TagResponse           `json:"tags"`
 	CreatedAt   string                  `json:"createdAt"`
 	UpdatedAt   string                  `json:"updatedAt"`
 }

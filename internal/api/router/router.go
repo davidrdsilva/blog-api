@@ -15,6 +15,8 @@ func SetupRouter(
 	uploadHandler *handlers.UploadHandler,
 	urlHandler *handlers.URLHandler,
 	commentHandler *handlers.CommentHandler,
+	categoryHandler *handlers.CategoryHandler,
+	tagHandler *handlers.TagHandler,
 	logger *logging.Logger,
 	corsOrigins []string,
 ) *gin.Engine {
@@ -34,6 +36,8 @@ func SetupRouter(
 	{
 		// Post endpoints
 		api.GET("/posts", postHandler.ListPosts)
+		// Static segments must precede the :id route to avoid being shadowed.
+		api.GET("/posts/count/by-category", categoryHandler.CountPostsByCategory)
 		api.GET("/posts/:id", postHandler.GetPost)
 		api.POST("/posts", postHandler.CreatePost)
 		api.PUT("/posts/:id", postHandler.UpdatePost)
@@ -43,6 +47,10 @@ func SetupRouter(
 		api.POST("/comments", commentHandler.CreateComment)
 		api.GET("/comments", commentHandler.ListComments)
 		api.DELETE("/comments/:id", commentHandler.DeleteComment)
+
+		// Category and tag endpoints
+		api.GET("/categories", categoryHandler.ListCategories)
+		api.GET("/tags", tagHandler.ListTags)
 
 		// Upload endpoint
 		api.POST("/upload", uploadHandler.UploadImage)

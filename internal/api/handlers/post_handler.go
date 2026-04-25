@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/davidrdsilva/blog-api/internal/application/dtos"
 	"github.com/davidrdsilva/blog-api/internal/application/services"
@@ -60,6 +61,16 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
 				Error: dtos.ErrorDetail{
 					Code:    "INVALID_IMAGE_URL",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
+		if containsStr(err.Error(), "invalid category") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "INVALID_CATEGORY",
 					Message: err.Error(),
 				},
 			})
@@ -151,6 +162,13 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 		SortOrder: c.Query("sortOrder"),
 		Page:      parseIntQuery(c, "page", 1),
 		Limit:     parseIntQuery(c, "limit", 6),
+		TagNames:  parseTagsQuery(c),
+	}
+
+	if categoryStr := c.Query("category_id"); categoryStr != "" {
+		if cid, err := strconv.Atoi(categoryStr); err == nil && cid > 0 {
+			filters.CategoryID = &cid
+		}
 	}
 
 	posts, err := h.service.ListPosts(filters)
@@ -212,6 +230,16 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
 				Error: dtos.ErrorDetail{
 					Code:    "INVALID_IMAGE_URL",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
+		if containsStr(err.Error(), "invalid category") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "INVALID_CATEGORY",
 					Message: err.Error(),
 				},
 			})
@@ -299,6 +327,22 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 
 	h.logger.Info("Post deleted successfully", logging.F("id", id))
 	c.Status(http.StatusNoContent)
+}
+
+// parseTagsQuery returns the tag-name filter values. Accepts repeated
+// `?tags=foo&tags=bar` plus a comma-joined `?tags=foo,bar` form for convenience.
+func parseTagsQuery(c *gin.Context) []string {
+	raw := c.QueryArray("tags")
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		for _, p := range strings.Split(v, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				out = append(out, p)
+			}
+		}
+	}
+	return out
 }
 
 // parseIntQuery parses an integer query parameter with a default value
