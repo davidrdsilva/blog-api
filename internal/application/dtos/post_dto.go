@@ -45,6 +45,7 @@ type PostResponse struct {
 	CategoryID  int                     `json:"category_id"`
 	Category    *CategoryResponse       `json:"category,omitempty"`
 	Tags        []TagResponse           `json:"tags"`
+	TotalViews  int                     `json:"total_views"`
 	CreatedAt   string                  `json:"createdAt"`
 	UpdatedAt   string                  `json:"updatedAt"`
 }

@@ -162,6 +162,13 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 		return fmt.Errorf("failed to create author index: %w", err)
 	}
 
+	// Index on total_views for the most-viewed query.
+	if err := db.Exec(
+		"CREATE INDEX IF NOT EXISTS idx_posts_total_views ON posts(total_views DESC)",
+	).Error; err != nil {
+		return fmt.Errorf("failed to create total_views index: %w", err)
+	}
+
 	// Index on post_id for comments
 	if err := db.Exec("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id)").Error; err != nil {
 		return fmt.Errorf("failed to create post_id index: %w", err)

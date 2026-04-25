@@ -32,6 +32,7 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 		CategoryID:  post.CategoryID,
 		Category:    categoryDTO,
 		Tags:        tags,
+		TotalViews:  post.TotalViews,
 		CreatedAt:   post.CreatedAt.In(brt).Format(time.RFC3339),
 		UpdatedAt:   post.UpdatedAt.In(brt).Format(time.RFC3339),
 	}

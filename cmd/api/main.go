@@ -95,8 +95,15 @@ func main() {
 	commentWorker := workers.NewCommentWorker(jobCh, aiCommentService, logger)
 	commentWorker.Start(ctx)
 
+	// View-counter pipeline: GetPost -> viewCh -> ViewCounterWorker -> repo.IncrementViews.
+	// Buffered so a brief surge in reads doesn't drop increments; if the buffer
+	// fills the service drops the job rather than blocking the read.
+	viewCh := make(chan jobs.IncrementPostViewsJob, 1000)
+	viewWorker := workers.NewViewCounterWorker(viewCh, postRepo, logger)
+	viewWorker.Start(ctx)
+
 	// Initialize services
-	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, cfg, jobCh, logger)
+	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, cfg, jobCh, viewCh, logger)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
 	commentService := services.NewCommentService(commentRepo, cfg)
@@ -154,9 +161,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Signal the comment worker to stop and close the job channel
+	// Signal the workers to stop and close the job channels.
 	cancel()
 	close(jobCh)
+	close(viewCh)
 
 	logger.Info("Server exited gracefully")
 }

@@ -181,6 +181,34 @@ func (r *PostgresPostRepository) Exists(id string) (bool, error) {
 	return count > 0, err
 }
 
+// IncrementViews atomically bumps total_views by 1 for the given post.
+// Returns nil silently for unknown IDs; callers (the worker) shouldn't fail
+// just because a post was deleted between the read request and the job run.
+func (r *PostgresPostRepository) IncrementViews(id string) error {
+	return r.db.Model(&models.Post{}).
+		Where("id = ?", id).
+		UpdateColumn("total_views", gorm.Expr("total_views + 1")).Error
+}
+
+// FindMostViewed returns the top-N posts by total_views.
+func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	var posts []*models.Post
+	err := r.db.
+		Preload("Category").
+		Preload("Tags").
+		Order("total_views DESC").
+		Order("date DESC").
+		Limit(limit).
+		Find(&posts).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch most viewed posts: %w", err)
+	}
+	return posts, nil
+}
+
 // ReplaceTags resets the tag set associated with a post. Used by Update so the
 // caller can supply a full replacement list of tags.
 func (r *PostgresPostRepository) ReplaceTags(postID string, tags []*models.Tag) error {

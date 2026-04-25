@@ -21,6 +21,7 @@ type PostService struct {
 	tagRepo      repositories.TagRepository
 	config       *config.Config
 	jobCh        chan<- jobs.GenerateCommentsJob
+	viewCh       chan<- jobs.IncrementPostViewsJob
 	logger       *logging.Logger
 }
 
@@ -31,6 +32,7 @@ func NewPostService(
 	tagRepo repositories.TagRepository,
 	cfg *config.Config,
 	jobCh chan<- jobs.GenerateCommentsJob,
+	viewCh chan<- jobs.IncrementPostViewsJob,
 	logger *logging.Logger,
 ) *PostService {
 	return &PostService{
@@ -39,6 +41,7 @@ func NewPostService(
 		tagRepo:      tagRepo,
 		config:       cfg,
 		jobCh:        jobCh,
+		viewCh:       viewCh,
 		logger:       logger,
 	}
 }
@@ -119,7 +122,39 @@ func (s *PostService) GetPost(id string) (*dtos.PostResponse, error) {
 		return nil, nil
 	}
 
+	// Fire-and-forget: bump total_views asynchronously so the read path stays
+	// fast and stays decoupled from a write that can fail independently. If
+	// the buffer is full we drop the increment rather than blocking.
+	if s.viewCh != nil {
+		select {
+		case s.viewCh <- jobs.IncrementPostViewsJob{PostID: post.ID}:
+		default:
+			s.logger.Warn("view increment dropped: channel full",
+				logging.F("postId", post.ID),
+			)
+		}
+	}
+
 	response := mappers.ToPostResponse(post)
+	return &response, nil
+}
+
+// GetMostViewed returns the top-N posts by total_views without pagination.
+func (s *PostService) GetMostViewed(limit int) (*dtos.PostListResponse, error) {
+	posts, err := s.repo.FindMostViewed(limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch most viewed posts: %w", err)
+	}
+	// Most-viewed has no pagination, so we surface a synthetic meta with the
+	// length so the response shape is consistent with the regular list.
+	meta := &models.PaginationMeta{
+		Total:      int64(len(posts)),
+		Page:       1,
+		Limit:      limit,
+		TotalPages: 1,
+		HasMore:    false,
+	}
+	response := mappers.ToPostListResponse(posts, meta)
 	return &response, nil
 }
 

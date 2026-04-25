@@ -20,6 +20,7 @@ type Post struct {
 	CategoryID  int              `gorm:"not null;index" json:"category_id"`
 	Category    *Category        `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
 	Tags        []Tag            `gorm:"many2many:posts_tags;" json:"tags,omitempty"`
+	TotalViews  int              `gorm:"not null;default:0" json:"total_views"`
 	Comments    []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
 	CreatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
 	UpdatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`

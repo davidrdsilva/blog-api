@@ -186,6 +186,29 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 	c.JSON(http.StatusOK, posts)
 }
 
+// MostViewed handles GET /api/posts/most-viewed
+//
+// @Summary      List the most viewed posts
+// @Tags         posts
+// @Produce      json
+// @Success      200  {object}  dtos.PostListResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /posts/most-viewed [get]
+func (h *PostHandler) MostViewed(c *gin.Context) {
+	resp, err := h.service.GetMostViewed(5)
+	if err != nil {
+		h.logger.Error("Failed to fetch most viewed posts", logging.F("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to fetch most viewed posts",
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // UpdatePost handles PUT /api/posts/:id
 //
 // @Summary      Update a post

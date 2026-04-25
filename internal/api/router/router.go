@@ -38,6 +38,7 @@ func SetupRouter(
 		api.GET("/posts", postHandler.ListPosts)
 		// Static segments must precede the :id route to avoid being shadowed.
 		api.GET("/posts/count/by-category", categoryHandler.CountPostsByCategory)
+		api.GET("/posts/most-viewed", postHandler.MostViewed)
 		api.GET("/posts/:id", postHandler.GetPost)
 		api.POST("/posts", postHandler.CreatePost)
 		api.PUT("/posts/:id", postHandler.UpdatePost)

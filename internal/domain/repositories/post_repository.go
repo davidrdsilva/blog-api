@@ -28,4 +28,12 @@ type PostRepository interface {
 	// ReplaceTags fully replaces the set of tags associated with a post.
 	// Used by updates that include a tags array.
 	ReplaceTags(postID string, tags []*models.Tag) error
+
+	// IncrementViews adds 1 to total_views atomically. Called from the view
+	// counter worker, decoupled from the read path.
+	IncrementViews(id string) error
+
+	// FindMostViewed returns up to `limit` posts ordered by total_views DESC.
+	// No pagination — the response is intentionally small.
+	FindMostViewed(limit int) ([]*models.Post, error)
 }
