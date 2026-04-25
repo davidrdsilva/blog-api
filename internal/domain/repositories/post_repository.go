@@ -36,4 +36,10 @@ type PostRepository interface {
 	// FindMostViewed returns up to `limit` posts ordered by total_views DESC.
 	// No pagination — the response is intentionally small.
 	FindMostViewed(limit int) ([]*models.Post, error)
+
+	// FindSimilar returns up to `limit` posts that share tags with the given
+	// post, ranked by the count of overlapping tags then by date DESC. The
+	// source post is always excluded. If the source has no tags, returns an
+	// empty slice.
+	FindSimilar(postID string, limit int) ([]*models.Post, error)
 }

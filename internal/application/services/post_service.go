@@ -139,6 +139,29 @@ func (s *PostService) GetPost(id string) (*dtos.PostResponse, error) {
 	return &response, nil
 }
 
+// GetSimilarPosts returns posts ranked by shared tags with the given post.
+// Empty result if the source has no tags or no other tagged posts overlap.
+func (s *PostService) GetSimilarPosts(id string, limit int) (*dtos.PostListResponse, error) {
+	if !isValidUUID(id) {
+		return nil, fmt.Errorf("invalid UUID format")
+	}
+
+	posts, err := s.repo.FindSimilar(id, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch similar posts: %w", err)
+	}
+
+	meta := &models.PaginationMeta{
+		Total:      int64(len(posts)),
+		Page:       1,
+		Limit:      limit,
+		TotalPages: 1,
+		HasMore:    false,
+	}
+	response := mappers.ToPostListResponse(posts, meta)
+	return &response, nil
+}
+
 // GetMostViewed returns the top-N posts by total_views without pagination.
 func (s *PostService) GetMostViewed(limit int) (*dtos.PostListResponse, error) {
 	posts, err := s.repo.FindMostViewed(limit)

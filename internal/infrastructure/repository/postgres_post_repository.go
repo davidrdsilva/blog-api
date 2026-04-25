@@ -209,6 +209,73 @@ func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, erro
 	return posts, nil
 }
 
+// FindSimilar returns posts that share tags with the given source post,
+// ranked by the count of shared tags (DESC) then by date (DESC). The source
+// post is always excluded.
+//
+// Implemented as two queries: the first ranks candidate IDs in SQL, the
+// second preloads Category + Tags. We keep them separate because GORM's
+// preloads don't compose cleanly with a GROUP BY + custom SELECT.
+func (r *PostgresPostRepository) FindSimilar(postID string, limit int) ([]*models.Post, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	type ranked struct {
+		ID         string
+		SharedTags int64
+	}
+
+	var rows []ranked
+	sourceTagIDs := r.db.
+		Table("posts_tags").
+		Select("tag_id").
+		Where("post_id = ?", postID)
+
+	if err := r.db.
+		Table("posts AS p").
+		Select("p.id AS id, COUNT(pt.tag_id) AS shared_tags").
+		Joins("JOIN posts_tags pt ON pt.post_id = p.id").
+		Where("pt.tag_id IN (?) AND p.id != ?", sourceTagIDs, postID).
+		Group("p.id, p.date").
+		Order("shared_tags DESC, p.date DESC").
+		Limit(limit).
+		Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("failed to rank similar posts: %w", err)
+	}
+
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, len(rows))
+	for i, row := range rows {
+		ids[i] = row.ID
+	}
+
+	var posts []*models.Post
+	if err := r.db.
+		Preload("Category").
+		Preload("Tags").
+		Where("id IN ?", ids).
+		Find(&posts).Error; err != nil {
+		return nil, fmt.Errorf("failed to load similar posts: %w", err)
+	}
+
+	// Re-order to match the SQL ranking — `IN ?` doesn't preserve order.
+	byID := make(map[string]*models.Post, len(posts))
+	for _, p := range posts {
+		byID[p.ID] = p
+	}
+	ordered := make([]*models.Post, 0, len(rows))
+	for _, row := range rows {
+		if p, ok := byID[row.ID]; ok {
+			ordered = append(ordered, p)
+		}
+	}
+	return ordered, nil
+}
+
 // ReplaceTags resets the tag set associated with a post. Used by Update so the
 // caller can supply a full replacement list of tags.
 func (r *PostgresPostRepository) ReplaceTags(postID string, tags []*models.Tag) error {

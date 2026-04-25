@@ -15,6 +15,39 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/categories": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "List categories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive name search",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/comments": {
             "get": {
                 "produces": [
@@ -221,12 +254,38 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "integer",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Filter by tag names (OR semantics; repeat the param or comma-join)",
+                        "name": "tags",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "date",
+                            "title",
+                            "createdAt",
+                            "updatedAt"
+                        ],
                         "type": "string",
                         "description": "Sort field",
                         "name": "sortBy",
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
                         "type": "string",
                         "description": "asc or desc",
                         "name": "sortOrder",
@@ -240,7 +299,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page (default 6)",
+                        "description": "Items per page (default 6, max 50)",
                         "name": "limit",
                         "in": "query"
                     }
@@ -293,6 +352,56 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/posts/count/by-category": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Count posts grouped by category",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryCountListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/posts/most-viewed": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "posts"
+                ],
+                "summary": "List the most viewed posts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PostListResponse"
                         }
                     },
                     "500": {
@@ -444,6 +553,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/posts/{id}/similar": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "posts"
+                ],
+                "summary": "List posts similar to the given post",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Post UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PostListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tags": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "List tags",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive name search",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TagListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/upload": {
             "post": {
                 "consumes": [
@@ -455,11 +637,11 @@ const docTemplate = `{
                 "tags": [
                     "upload"
                 ],
-                "summary": "Upload an image",
+                "summary": "Upload a file (image or video)",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "Image file",
+                        "description": "Image or video file",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -483,6 +665,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dtos.CategoryCountListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CategoryCountResponse"
+                    }
+                }
+            }
+        },
+        "dtos.CategoryCountResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "total_posts": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.CategoryListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CategoryResponse"
+                    }
+                }
+            }
+        },
+        "dtos.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.CommentListResponse": {
             "type": "object",
             "properties": {
@@ -532,6 +761,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "author",
+                "category_id",
                 "description",
                 "image",
                 "title"
@@ -541,6 +771,10 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 1
+                },
+                "category_id": {
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
@@ -559,6 +793,12 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string",
                     "maxLength": 300
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "title": {
                     "type": "string",
@@ -665,6 +905,12 @@ const docTemplate = `{
                 "author": {
                     "type": "string"
                 },
+                "category": {
+                    "$ref": "#/definitions/dtos.CategoryResponse"
+                },
+                "category_id": {
+                    "type": "integer"
+                },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
                 },
@@ -686,8 +932,17 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string"
                 },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TagResponse"
+                    }
+                },
                 "title": {
                     "type": "string"
+                },
+                "total_views": {
+                    "type": "integer"
                 },
                 "updatedAt": {
                     "type": "string"
@@ -698,6 +953,28 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {}
+            }
+        },
+        "dtos.TagListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TagResponse"
+                    }
+                }
+            }
+        },
+        "dtos.TagResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
             }
         },
         "dtos.URLImageInfo": {
@@ -725,6 +1002,10 @@ const docTemplate = `{
         "dtos.UpdatePostRequest": {
             "type": "object",
             "properties": {
+                "category_id": {
+                    "type": "integer",
+                    "minimum": 1
+                },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
                 },
@@ -742,6 +1023,13 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string",
                     "maxLength": 300
+                },
+                "tags": {
+                    "description": "Tags is treated as a full replacement when present (nil means \"leave as is\").",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "title": {
                     "type": "string",

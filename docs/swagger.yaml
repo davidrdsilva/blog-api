@@ -1,5 +1,35 @@
 basePath: /api
 definitions:
+  dtos.CategoryCountListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dtos.CategoryCountResponse'
+        type: array
+    type: object
+  dtos.CategoryCountResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      total_posts:
+        type: integer
+    type: object
+  dtos.CategoryListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dtos.CategoryResponse'
+        type: array
+    type: object
+  dtos.CategoryResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   dtos.CommentListResponse:
     properties:
       data:
@@ -35,6 +65,9 @@ definitions:
         maxLength: 100
         minLength: 1
         type: string
+      category_id:
+        minimum: 1
+        type: integer
       content:
         $ref: '#/definitions/models.EditorJsContent'
       date:
@@ -48,12 +81,17 @@ definitions:
       subtitle:
         maxLength: 300
         type: string
+      tags:
+        items:
+          type: string
+        type: array
       title:
         maxLength: 200
         minLength: 1
         type: string
     required:
     - author
+    - category_id
     - description
     - image
     - title
@@ -121,6 +159,10 @@ definitions:
     properties:
       author:
         type: string
+      category:
+        $ref: '#/definitions/dtos.CategoryResponse'
+      category_id:
+        type: integer
       content:
         $ref: '#/definitions/models.EditorJsContent'
       createdAt:
@@ -135,14 +177,34 @@ definitions:
         type: string
       subtitle:
         type: string
+      tags:
+        items:
+          $ref: '#/definitions/dtos.TagResponse'
+        type: array
       title:
         type: string
+      total_views:
+        type: integer
       updatedAt:
         type: string
     type: object
   dtos.SuccessResponse:
     properties:
       data: {}
+    type: object
+  dtos.TagListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dtos.TagResponse'
+        type: array
+    type: object
+  dtos.TagResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
     type: object
   dtos.URLImageInfo:
     properties:
@@ -160,6 +222,9 @@ definitions:
     type: object
   dtos.UpdatePostRequest:
     properties:
+      category_id:
+        minimum: 1
+        type: integer
       content:
         $ref: '#/definitions/models.EditorJsContent'
       date:
@@ -173,6 +238,12 @@ definitions:
       subtitle:
         maxLength: 300
         type: string
+      tags:
+        description: Tags is treated as a full replacement when present (nil means
+          "leave as is").
+        items:
+          type: string
+        type: array
       title:
         maxLength: 200
         minLength: 1
@@ -221,6 +292,27 @@ info:
   title: Blog API
   version: "1.0"
 paths:
+  /categories:
+    get:
+      parameters:
+      - description: Case-insensitive name search
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CategoryListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List categories
+      tags:
+      - categories
   /comments:
     get:
       parameters:
@@ -351,11 +443,30 @@ paths:
         in: query
         name: author
         type: string
+      - description: Filter by category ID
+        in: query
+        name: category_id
+        type: integer
+      - collectionFormat: multi
+        description: Filter by tag names (OR semantics; repeat the param or comma-join)
+        in: query
+        items:
+          type: string
+        name: tags
+        type: array
       - description: Sort field
+        enum:
+        - date
+        - title
+        - createdAt
+        - updatedAt
         in: query
         name: sortBy
         type: string
       - description: asc or desc
+        enum:
+        - asc
+        - desc
         in: query
         name: sortOrder
         type: string
@@ -363,7 +474,7 @@ paths:
         in: query
         name: page
         type: integer
-      - description: Items per page (default 6)
+      - description: Items per page (default 6, max 50)
         in: query
         name: limit
         type: integer
@@ -501,12 +612,91 @@ paths:
       summary: Update a post
       tags:
       - posts
+  /posts/{id}/similar:
+    get:
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PostListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List posts similar to the given post
+      tags:
+      - posts
+  /posts/count/by-category:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CategoryCountListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Count posts grouped by category
+      tags:
+      - categories
+  /posts/most-viewed:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PostListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List the most viewed posts
+      tags:
+      - posts
+  /tags:
+    get:
+      parameters:
+      - description: Case-insensitive name search
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TagListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List tags
+      tags:
+      - tags
   /upload:
     post:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Image file
+      - description: Image or video file
         in: formData
         name: file
         required: true
@@ -522,7 +712,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dtos.EditorJsUploadResponse'
-      summary: Upload an image
+      summary: Upload a file (image or video)
       tags:
       - upload
 swagger: "2.0"

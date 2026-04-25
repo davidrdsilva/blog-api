@@ -144,14 +144,16 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 // @Summary      List posts
 // @Tags         posts
 // @Produce      json
-// @Param        search     query     string  false  "Search term"
-// @Param        author     query     string  false  "Filter by author"
-// @Param        sortBy     query     string  false  "Sort field"
-// @Param        sortOrder  query     string  false  "asc or desc"
-// @Param        page       query     int     false  "Page number (default 1)"
-// @Param        limit      query     int     false  "Items per page (default 6)"
-// @Success      200        {object}  dtos.PostListResponse
-// @Failure      500        {object}  dtos.ErrorResponse
+// @Param        search       query     string    false  "Search term"
+// @Param        author       query     string    false  "Filter by author"
+// @Param        category_id  query     int       false  "Filter by category ID"
+// @Param        tags         query     []string  false  "Filter by tag names (OR semantics; repeat the param or comma-join)"  collectionFormat(multi)
+// @Param        sortBy       query     string    false  "Sort field"  Enums(date, title, createdAt, updatedAt)
+// @Param        sortOrder    query     string    false  "asc or desc"  Enums(asc, desc)
+// @Param        page         query     int       false  "Page number (default 1)"
+// @Param        limit        query     int       false  "Items per page (default 6, max 50)"
+// @Success      200          {object}  dtos.PostListResponse
+// @Failure      500          {object}  dtos.ErrorResponse
 // @Router       /posts [get]
 func (h *PostHandler) ListPosts(c *gin.Context) {
 	// Parse query parameters
@@ -184,6 +186,44 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, posts)
+}
+
+// Similar handles GET /api/posts/:id/similar
+//
+// @Summary      List posts similar to the given post
+// @Tags         posts
+// @Produce      json
+// @Param        id   path      string  true  "Post UUID"
+// @Success      200  {object}  dtos.PostListResponse
+// @Failure      400  {object}  dtos.ErrorResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /posts/{id}/similar [get]
+func (h *PostHandler) Similar(c *gin.Context) {
+	id := c.Param("id")
+	resp, err := h.service.GetSimilarPosts(id, 5)
+	if err != nil {
+		if containsStr(err.Error(), "invalid UUID") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "INVALID_POST_ID",
+					Message: "Invalid UUID format",
+				},
+			})
+			return
+		}
+		h.logger.Error("Failed to fetch similar posts",
+			logging.F("error", err.Error()),
+			logging.F("id", id),
+		)
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to fetch similar posts",
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // MostViewed handles GET /api/posts/most-viewed
