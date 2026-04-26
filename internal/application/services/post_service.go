@@ -76,7 +76,7 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 			errWhitenestMismatch, *req.WhitenestChapterNumber, cat.Name)
 	}
 
-	if req.CharacterIDs != nil && !isWhitenestCategory {
+	if req.CharacterIDs != nil && len(*req.CharacterIDs) > 0 && !isWhitenestCategory {
 		return nil, fmt.Errorf("%s: provided cast on category=%q",
 			errCastNotWhitenest, cat.Name)
 	}
@@ -273,7 +273,7 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("%s: post would have number=%d on category=%q",
 			errWhitenestMismatch, *effectiveChapterNumber, cat.Name)
 	}
-	if req.CharacterIDs != nil && !isWhitenestCategory {
+	if req.CharacterIDs != nil && len(*req.CharacterIDs) > 0 && !isWhitenestCategory {
 		return nil, fmt.Errorf("%s: provided cast on category=%q",
 			errCastNotWhitenest, cat.Name)
 	}
