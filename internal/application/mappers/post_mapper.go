@@ -7,7 +7,6 @@ import (
 	"github.com/davidrdsilva/blog-api/internal/domain/models"
 )
 
-// ToPostResponse converts a domain Post to a PostResponse DTO
 func ToPostResponse(post *models.Post) dtos.PostResponse {
 	var categoryDTO *dtos.CategoryResponse
 	if post.Category != nil {
@@ -19,6 +18,8 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 	if tags == nil {
 		tags = []dtos.TagResponse{}
 	}
+
+	characters := ToCharacterResponses(post.Characters)
 
 	return dtos.PostResponse{
 		ID:                     post.ID,
@@ -32,6 +33,7 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 		CategoryID:             post.CategoryID,
 		Category:               categoryDTO,
 		Tags:                   tags,
+		Characters:             characters,
 		TotalViews:             post.TotalViews,
 		WhitenestChapterNumber: post.WhitenestChapterNumber,
 		CreatedAt:              post.CreatedAt.In(brt).Format(time.RFC3339),
@@ -39,7 +41,6 @@ func ToPostResponse(post *models.Post) dtos.PostResponse {
 	}
 }
 
-// Returns nil when post is nil or not a chapter.
 func ToWhitenestChapterRef(post *models.Post) *dtos.WhitenestChapterRef {
 	if post == nil || post.WhitenestChapterNumber == nil {
 		return nil
@@ -51,7 +52,6 @@ func ToWhitenestChapterRef(post *models.Post) *dtos.WhitenestChapterRef {
 	}
 }
 
-// Skips posts that aren't Whitenest chapters.
 func ToWhitenestChapterSummaries(posts []*models.Post) []dtos.WhitenestChapterSummary {
 	out := make([]dtos.WhitenestChapterSummary, 0, len(posts))
 	for _, p := range posts {

@@ -61,6 +61,7 @@ func (s *WhitenestService) GetChapterByNumber(number int) (*dtos.WhitenestChapte
 		Chapter:  mappers.ToPostResponse(post),
 		Previous: mappers.ToWhitenestChapterRef(previous),
 		Next:     mappers.ToWhitenestChapterRef(next),
+		Cast:     mappers.ToCharacterResponses(post.Characters),
 	}, nil
 }
 

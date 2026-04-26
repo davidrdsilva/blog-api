@@ -9,24 +9,23 @@ import (
 
 // Post represents a blog post entity
 type Post struct {
-	ID          string           `gorm:"type:uuid;primaryKey" json:"id"`
-	Title       string           `gorm:"type:varchar(200);not null" json:"title"`
-	Subtitle    *string          `gorm:"type:varchar(300)" json:"subtitle"`
-	Description string           `gorm:"type:varchar(100);not null" json:"description"`
-	Image       string           `gorm:"type:varchar(2048);not null" json:"image"`
-	Date        time.Time        `gorm:"type:timestamp with time zone;not null" json:"date"`
-	Author      string           `gorm:"type:varchar(100);not null" json:"author"`
-	Content     *EditorJsContent `gorm:"type:jsonb" json:"content"`
-	CategoryID  int              `gorm:"not null;index" json:"category_id"`
-	Category    *Category        `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
-	Tags        []Tag            `gorm:"many2many:posts_tags;" json:"tags,omitempty"`
-	TotalViews  int              `gorm:"not null;default:0" json:"total_views"`
-	// Non-nil only for Whitenest chapters. Presence is the canonical signal —
-	// there is no separate boolean flag.
-	WhitenestChapterNumber *int `gorm:"uniqueIndex" json:"whitenest_chapter_number,omitempty"`
-	Comments    []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
-	CreatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
-	UpdatedAt   time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`
+	ID                     string           `gorm:"type:uuid;primaryKey" json:"id"`
+	Title                  string           `gorm:"type:varchar(200);not null" json:"title"`
+	Subtitle               *string          `gorm:"type:varchar(300)" json:"subtitle"`
+	Description            string           `gorm:"type:varchar(100);not null" json:"description"`
+	Image                  string           `gorm:"type:varchar(2048);not null" json:"image"`
+	Date                   time.Time        `gorm:"type:timestamp with time zone;not null" json:"date"`
+	Author                 string           `gorm:"type:varchar(100);not null" json:"author"`
+	Content                *EditorJsContent `gorm:"type:jsonb" json:"content"`
+	CategoryID             int              `gorm:"not null;index" json:"category_id"`
+	Category               *Category        `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
+	Tags                   []Tag            `gorm:"many2many:posts_tags;" json:"tags,omitempty"`
+	Characters             []Character      `gorm:"many2many:posts_characters;" json:"characters,omitempty"`
+	TotalViews             int              `gorm:"not null;default:0" json:"total_views"`
+	WhitenestChapterNumber *int             `gorm:"uniqueIndex" json:"whitenest_chapter_number,omitempty"`
+	Comments               []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
+	CreatedAt              time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
+	UpdatedAt              time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`
 }
 
 // TableName specifies the table name for GORM

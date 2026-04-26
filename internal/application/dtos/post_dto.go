@@ -8,31 +8,31 @@ import (
 
 // CreatePostRequest represents the request body for creating a post
 type CreatePostRequest struct {
-	Title       string                  `json:"title" binding:"required,min=1,max=200"`
-	Subtitle    *string                 `json:"subtitle" binding:"omitempty,max=300"`
-	Description string                  `json:"description" binding:"required,min=1,max=100"`
-	Image       string                  `json:"image" binding:"required,url"`
-	Author      string                  `json:"author" binding:"required,min=1,max=100"`
-	Content     *models.EditorJsContent `json:"content"`
-	Date        *time.Time              `json:"date" binding:"omitempty"`
-	CategoryID  int                     `json:"category_id" binding:"required,min=1"`
-	Tags        []string                `json:"tags" binding:"omitempty,dive,min=1,max=60"`
-	// Auto-assigned to MAX+1 when omitted on a Whitenest post; rejected on others.
-	WhitenestChapterNumber *int `json:"whitenest_chapter_number,omitempty" binding:"omitempty,min=1"`
+	Title                  string                  `json:"title" binding:"required,min=1,max=200"`
+	Subtitle               *string                 `json:"subtitle" binding:"omitempty,max=300"`
+	Description            string                  `json:"description" binding:"required,min=1,max=100"`
+	Image                  string                  `json:"image" binding:"required,url"`
+	Author                 string                  `json:"author" binding:"required,min=1,max=100"`
+	Content                *models.EditorJsContent `json:"content"`
+	Date                   *time.Time              `json:"date" binding:"omitempty"`
+	CategoryID             int                     `json:"category_id" binding:"required,min=1"`
+	Tags                   []string                `json:"tags" binding:"omitempty,dive,min=1,max=60"`
+	WhitenestChapterNumber *int                    `json:"whitenest_chapter_number,omitempty" binding:"omitempty,min=1"`
+	CharacterIDs           *[]string               `json:"character_ids,omitempty" binding:"omitempty,dive,uuid"`
 }
 
 // UpdatePostRequest represents the request body for updating a post
 type UpdatePostRequest struct {
-	Title       *string                 `json:"title" binding:"omitempty,min=1,max=200"`
-	Subtitle    *string                 `json:"subtitle" binding:"omitempty,max=300"`
-	Description *string                 `json:"description" binding:"omitempty,min=1,max=100"`
-	Image       *string                 `json:"image" binding:"omitempty,url"`
-	Content     *models.EditorJsContent `json:"content"`
-	Date        *time.Time              `json:"date" binding:"omitempty"`
-	CategoryID  *int                    `json:"category_id" binding:"omitempty,min=1"`
-	// Tags is treated as a full replacement when present (nil means "leave as is").
-	Tags                   *[]string `json:"tags" binding:"omitempty,dive,min=1,max=60"`
-	WhitenestChapterNumber *int      `json:"whitenest_chapter_number,omitempty" binding:"omitempty,min=1"`
+	Title                  *string                 `json:"title" binding:"omitempty,min=1,max=200"`
+	Subtitle               *string                 `json:"subtitle" binding:"omitempty,max=300"`
+	Description            *string                 `json:"description" binding:"omitempty,min=1,max=100"`
+	Image                  *string                 `json:"image" binding:"omitempty,url"`
+	Content                *models.EditorJsContent `json:"content"`
+	Date                   *time.Time              `json:"date" binding:"omitempty"`
+	CategoryID             *int                    `json:"category_id" binding:"omitempty,min=1"`
+	Tags                   *[]string               `json:"tags" binding:"omitempty,dive,min=1,max=60"`
+	WhitenestChapterNumber *int                    `json:"whitenest_chapter_number,omitempty" binding:"omitempty,min=1"`
+	CharacterIDs           *[]string               `json:"character_ids,omitempty" binding:"omitempty,dive,uuid"`
 }
 
 // PostResponse represents a single post in API responses
@@ -48,6 +48,7 @@ type PostResponse struct {
 	CategoryID             int                     `json:"category_id"`
 	Category               *CategoryResponse       `json:"category,omitempty"`
 	Tags                   []TagResponse           `json:"tags"`
+	Characters             []CharacterResponse     `json:"characters"`
 	TotalViews             int                     `json:"total_views"`
 	WhitenestChapterNumber *int                    `json:"whitenest_chapter_number,omitempty"`
 	CreatedAt              string                  `json:"createdAt"`
@@ -74,6 +75,7 @@ type WhitenestChapterResponse struct {
 	Chapter  PostResponse         `json:"chapter"`
 	Previous *WhitenestChapterRef `json:"previous"`
 	Next     *WhitenestChapterRef `json:"next"`
+	Cast     []CharacterResponse  `json:"cast"`
 }
 
 // PostListResponse represents a paginated list of posts

@@ -18,6 +18,7 @@ func SetupRouter(
 	categoryHandler *handlers.CategoryHandler,
 	tagHandler *handlers.TagHandler,
 	whitenestHandler *handlers.WhitenestHandler,
+	characterHandler *handlers.CharacterHandler,
 	logger *logging.Logger,
 	corsOrigins []string,
 ) *gin.Engine {
@@ -54,6 +55,13 @@ func SetupRouter(
 		// Category and tag endpoints
 		api.GET("/categories", categoryHandler.ListCategories)
 		api.GET("/tags", tagHandler.ListTags)
+
+		// Character endpoints (used by Whitenest chapter cast)
+		api.GET("/characters", characterHandler.ListCharacters)
+		api.GET("/characters/:id", characterHandler.GetCharacter)
+		api.POST("/characters", characterHandler.CreateCharacter)
+		api.PUT("/characters/:id", characterHandler.UpdateCharacter)
+		api.DELETE("/characters/:id", characterHandler.DeleteCharacter)
 
 		// Whitenest serial-fiction endpoints
 		api.GET("/whitenest/chapters", whitenestHandler.ListChapters)

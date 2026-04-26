@@ -18,15 +18,20 @@ import (
 // Matched as a substring by the post handler to map to WHITENEST_INVARIANT_VIOLATION.
 const errWhitenestMismatch = "whitenest invariant: chapter number requires Whitenest category"
 
+// errCastNotWhitenest is matched as a substring by the post handler to surface
+// a clear error code when character_ids is supplied on a non-Whitenest post.
+const errCastNotWhitenest = "whitenest invariant: cast requires Whitenest category"
+
 // PostService handles business logic for posts
 type PostService struct {
-	repo         repositories.PostRepository
-	categoryRepo repositories.CategoryRepository
-	tagRepo      repositories.TagRepository
-	config       *config.Config
-	jobCh        chan<- jobs.GenerateCommentsJob
-	viewCh       chan<- jobs.IncrementPostViewsJob
-	logger       *logging.Logger
+	repo          repositories.PostRepository
+	categoryRepo  repositories.CategoryRepository
+	tagRepo       repositories.TagRepository
+	characterRepo repositories.CharacterRepository
+	config        *config.Config
+	jobCh         chan<- jobs.GenerateCommentsJob
+	viewCh        chan<- jobs.IncrementPostViewsJob
+	logger        *logging.Logger
 }
 
 // NewPostService creates a new post service
@@ -34,19 +39,21 @@ func NewPostService(
 	repo repositories.PostRepository,
 	categoryRepo repositories.CategoryRepository,
 	tagRepo repositories.TagRepository,
+	characterRepo repositories.CharacterRepository,
 	cfg *config.Config,
 	jobCh chan<- jobs.GenerateCommentsJob,
 	viewCh chan<- jobs.IncrementPostViewsJob,
 	logger *logging.Logger,
 ) *PostService {
 	return &PostService{
-		repo:         repo,
-		categoryRepo: categoryRepo,
-		tagRepo:      tagRepo,
-		config:       cfg,
-		jobCh:        jobCh,
-		viewCh:       viewCh,
-		logger:       logger,
+		repo:          repo,
+		categoryRepo:  categoryRepo,
+		tagRepo:       tagRepo,
+		characterRepo: characterRepo,
+		config:        cfg,
+		jobCh:         jobCh,
+		viewCh:        viewCh,
+		logger:        logger,
 	}
 }
 
@@ -67,6 +74,11 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 	if req.WhitenestChapterNumber != nil && !isWhitenestCategory {
 		return nil, fmt.Errorf("%s: provided number=%d on category=%q",
 			errWhitenestMismatch, *req.WhitenestChapterNumber, cat.Name)
+	}
+
+	if req.CharacterIDs != nil && !isWhitenestCategory {
+		return nil, fmt.Errorf("%s: provided cast on category=%q",
+			errCastNotWhitenest, cat.Name)
 	}
 
 	if isWhitenestCategory && req.WhitenestChapterNumber == nil {
@@ -98,6 +110,12 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 
 	if err := s.repo.Create(post); err != nil {
 		return nil, fmt.Errorf("failed to create post: %w", err)
+	}
+
+	if req.CharacterIDs != nil {
+		if err := s.persistCast(post.ID, *req.CharacterIDs); err != nil {
+			return nil, err
+		}
 	}
 
 	// Re-fetch so Category is populated for the response.
@@ -255,6 +273,10 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("%s: post would have number=%d on category=%q",
 			errWhitenestMismatch, *effectiveChapterNumber, cat.Name)
 	}
+	if req.CharacterIDs != nil && !isWhitenestCategory {
+		return nil, fmt.Errorf("%s: provided cast on category=%q",
+			errCastNotWhitenest, cat.Name)
+	}
 	if isWhitenestCategory && effectiveChapterNumber == nil {
 		max, err := s.repo.MaxWhitenestChapterNumber()
 		if err != nil {
@@ -283,6 +305,13 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		}
 	}
 
+	// Same semantics for cast: present array = full replacement.
+	if req.CharacterIDs != nil {
+		if err := s.persistCast(id, *req.CharacterIDs); err != nil {
+			return nil, err
+		}
+	}
+
 	updatedPost, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch updated post: %w", err)
@@ -305,6 +334,24 @@ func (s *PostService) DeletePost(id string) error {
 	err := s.repo.Delete(id)
 	if err != nil {
 		return fmt.Errorf("failed to delete post: %w", err)
+	}
+	return nil
+}
+
+// persistCast verifies every supplied character ID exists, then writes the
+// join rows in the supplied order. An empty slice clears the cast.
+func (s *PostService) persistCast(postID string, characterIDs []string) error {
+	if len(characterIDs) > 0 {
+		found, err := s.characterRepo.FindByIDs(characterIDs)
+		if err != nil {
+			return fmt.Errorf("failed to verify cast: %w", err)
+		}
+		if len(found) != len(characterIDs) {
+			return fmt.Errorf("invalid cast: one or more character IDs do not exist")
+		}
+	}
+	if err := s.repo.ReplaceCharacters(postID, characterIDs); err != nil {
+		return fmt.Errorf("failed to persist cast: %w", err)
 	}
 	return nil
 }

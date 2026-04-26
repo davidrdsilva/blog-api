@@ -41,6 +41,274 @@
                 }
             }
         },
+        "/characters": {
+            "get": {
+                "description": "Returns all characters, alphabetized by short name. Optionally\nfilter by `?search=` (case-insensitive on full and short name).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "List characters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Substring search on short_name/full_name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dtos.CharacterResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Create a character",
+                "parameters": [
+                    {
+                        "description": "Character payload",
+                        "name": "character",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateCharacterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.CharacterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/characters/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Get a character by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Character UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.CharacterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Update a character",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Character UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Patch payload",
+                        "name": "character",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateCharacterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.CharacterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Delete a character",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Character UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/comments": {
             "get": {
                 "produces": [
@@ -805,6 +1073,76 @@
                 }
             }
         },
+        "dtos.CharacterResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "occupation": {
+                    "type": "string"
+                },
+                "portrait": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string"
+                },
+                "skills": {
+                    "$ref": "#/definitions/models.CharacterSkills"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.CharacterSkillsRequest": {
+            "type": "object",
+            "properties": {
+                "endurance": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "guns": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "intellect": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "melee": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "persuasion": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "stealth": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                }
+            }
+        },
         "dtos.CommentListResponse": {
             "type": "object",
             "properties": {
@@ -833,6 +1171,50 @@
                 },
                 "postId": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.CreateCharacterRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "full_name",
+                "location",
+                "occupation",
+                "portrait",
+                "short_name",
+                "skills"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "location": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "minLength": 1
+                },
+                "occupation": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "portrait": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "minLength": 1
+                },
+                "skills": {
+                    "$ref": "#/definitions/dtos.CharacterSkillsRequest"
                 }
             }
         },
@@ -868,6 +1250,13 @@
                 "category_id": {
                     "type": "integer",
                     "minimum": 1
+                },
+                "character_ids": {
+                    "description": "Cast assigned to a Whitenest chapter, in display order. Rejected on\nnon-Whitenest posts. nil = no cast supplied.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
@@ -1009,6 +1398,12 @@
                 "category_id": {
                     "type": "integer"
                 },
+                "characters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CharacterResponse"
+                    }
+                },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
                 },
@@ -1100,12 +1495,54 @@
                 }
             }
         },
+        "dtos.UpdateCharacterRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "location": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "minLength": 1
+                },
+                "occupation": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "portrait": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "minLength": 1
+                },
+                "skills": {
+                    "$ref": "#/definitions/dtos.CharacterSkillsRequest"
+                }
+            }
+        },
         "dtos.UpdatePostRequest": {
             "type": "object",
             "properties": {
                 "category_id": {
                     "type": "integer",
                     "minimum": 1
+                },
+                "character_ids": {
+                    "description": "Cast replacement when present (nil = leave as is, present = full replacement).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "content": {
                     "$ref": "#/definitions/models.EditorJsContent"
@@ -1160,6 +1597,12 @@
         "dtos.WhitenestChapterResponse": {
             "type": "object",
             "properties": {
+                "cast": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CharacterResponse"
+                    }
+                },
                 "chapter": {
                     "$ref": "#/definitions/dtos.PostResponse"
                 },
@@ -1190,6 +1633,29 @@
                     "type": "string"
                 },
                 "whitenest_chapter_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.CharacterSkills": {
+            "type": "object",
+            "properties": {
+                "endurance": {
+                    "type": "integer"
+                },
+                "guns": {
+                    "type": "integer"
+                },
+                "intellect": {
+                    "type": "integer"
+                },
+                "melee": {
+                    "type": "integer"
+                },
+                "persuasion": {
+                    "type": "integer"
+                },
+                "stealth": {
                     "type": "integer"
                 }
             }

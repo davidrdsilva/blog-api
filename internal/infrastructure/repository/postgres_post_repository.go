@@ -36,7 +36,29 @@ func (r *PostgresPostRepository) FindByID(id string) (*models.Post, error) {
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
-	return &post, err
+	if err != nil {
+		return nil, err
+	}
+	if err := r.loadCast(&post); err != nil {
+		return nil, err
+	}
+	return &post, nil
+}
+
+// loadCast hydrates post.Characters in the join table's position order.
+// Done as a separate query because GORM's many2many Preload doesn't expose
+// the join-row column for ORDER BY.
+func (r *PostgresPostRepository) loadCast(post *models.Post) error {
+	var rows []models.Character
+	if err := r.db.
+		Joins("JOIN posts_characters pc ON pc.character_id = characters.id").
+		Where("pc.post_id = ?", post.ID).
+		Order("pc.position ASC").
+		Find(&rows).Error; err != nil {
+		return fmt.Errorf("failed to load post cast: %w", err)
+	}
+	post.Characters = rows
+	return nil
 }
 
 // FindAll retrieves posts with filtering, pagination, and sorting
@@ -295,7 +317,13 @@ func (r *PostgresPostRepository) FindWhitenestChapterByNumber(number int) (*mode
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
-	return &post, err
+	if err != nil {
+		return nil, err
+	}
+	if err := r.loadCast(&post); err != nil {
+		return nil, err
+	}
+	return &post, nil
 }
 
 // Tags/Category are intentionally omitted — the prev/next link cards only
@@ -367,6 +395,33 @@ func (r *PostgresPostRepository) ReplaceTags(postID string, tags []*models.Tag) 
 		return fmt.Errorf("failed to replace tags: %w", err)
 	}
 	return nil
+}
+
+// ReplaceCharacters fully replaces the cast for a post, writing the join rows
+// manually so that each row's `position` matches the index in the supplied
+// slice. GORM's Association().Replace API doesn't expose extra-column writes,
+// so we do it by hand inside a single transaction.
+func (r *PostgresPostRepository) ReplaceCharacters(postID string, characterIDs []string) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("post_id = ?", postID).Delete(&models.PostsCharacter{}).Error; err != nil {
+			return fmt.Errorf("failed to clear existing cast: %w", err)
+		}
+		if len(characterIDs) == 0 {
+			return nil
+		}
+		rows := make([]models.PostsCharacter, len(characterIDs))
+		for i, charID := range characterIDs {
+			rows[i] = models.PostsCharacter{
+				PostID:      postID,
+				CharacterID: charID,
+				Position:    i,
+			}
+		}
+		if err := tx.Create(&rows).Error; err != nil {
+			return fmt.Errorf("failed to insert cast rows: %w", err)
+		}
+		return nil
+	})
 }
 
 // camelToSnake converts camelCase to snake_case

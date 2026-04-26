@@ -29,6 +29,11 @@ type PostRepository interface {
 	// Used by updates that include a tags array.
 	ReplaceTags(postID string, tags []*models.Tag) error
 
+	// ReplaceCharacters fully replaces the cast assigned to a post,
+	// preserving the supplied order via the join table's `position` column.
+	// Used by Whitenest chapter create/update flows.
+	ReplaceCharacters(postID string, characterIDs []string) error
+
 	// IncrementViews adds 1 to total_views atomically. Called from the view
 	// counter worker, decoupled from the read path.
 	IncrementViews(id string) error

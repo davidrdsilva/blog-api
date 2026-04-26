@@ -30,6 +30,56 @@ definitions:
       name:
         type: string
     type: object
+  dtos.CharacterResponse:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      location:
+        type: string
+      occupation:
+        type: string
+      portrait:
+        type: string
+      short_name:
+        type: string
+      skills:
+        $ref: '#/definitions/models.CharacterSkills'
+      updatedAt:
+        type: string
+    type: object
+  dtos.CharacterSkillsRequest:
+    properties:
+      endurance:
+        maximum: 100
+        minimum: 0
+        type: integer
+      guns:
+        maximum: 100
+        minimum: 0
+        type: integer
+      intellect:
+        maximum: 100
+        minimum: 0
+        type: integer
+      melee:
+        maximum: 100
+        minimum: 0
+        type: integer
+      persuasion:
+        maximum: 100
+        minimum: 0
+        type: integer
+      stealth:
+        maximum: 100
+        minimum: 0
+        type: integer
+    type: object
   dtos.CommentListResponse:
     properties:
       data:
@@ -50,6 +100,40 @@ definitions:
       postId:
         type: string
     type: object
+  dtos.CreateCharacterRequest:
+    properties:
+      description:
+        minLength: 1
+        type: string
+      full_name:
+        maxLength: 120
+        minLength: 1
+        type: string
+      location:
+        maxLength: 160
+        minLength: 1
+        type: string
+      occupation:
+        maxLength: 120
+        minLength: 1
+        type: string
+      portrait:
+        type: string
+      short_name:
+        maxLength: 60
+        minLength: 1
+        type: string
+      skills:
+        $ref: '#/definitions/dtos.CharacterSkillsRequest'
+    required:
+    - description
+    - full_name
+    - location
+    - occupation
+    - portrait
+    - short_name
+    - skills
+    type: object
   dtos.CreateCommentRequest:
     properties:
       author:
@@ -68,6 +152,13 @@ definitions:
       category_id:
         minimum: 1
         type: integer
+      character_ids:
+        description: |-
+          Cast assigned to a Whitenest chapter, in display order. Rejected on
+          non-Whitenest posts. nil = no cast supplied.
+        items:
+          type: string
+        type: array
       content:
         $ref: '#/definitions/models.EditorJsContent'
       date:
@@ -168,6 +259,10 @@ definitions:
         $ref: '#/definitions/dtos.CategoryResponse'
       category_id:
         type: integer
+      characters:
+        items:
+          $ref: '#/definitions/dtos.CharacterResponse'
+        type: array
       content:
         $ref: '#/definitions/models.EditorJsContent'
       createdAt:
@@ -227,11 +322,43 @@ definitions:
       title:
         type: string
     type: object
+  dtos.UpdateCharacterRequest:
+    properties:
+      description:
+        minLength: 1
+        type: string
+      full_name:
+        maxLength: 120
+        minLength: 1
+        type: string
+      location:
+        maxLength: 160
+        minLength: 1
+        type: string
+      occupation:
+        maxLength: 120
+        minLength: 1
+        type: string
+      portrait:
+        type: string
+      short_name:
+        maxLength: 60
+        minLength: 1
+        type: string
+      skills:
+        $ref: '#/definitions/dtos.CharacterSkillsRequest'
+    type: object
   dtos.UpdatePostRequest:
     properties:
       category_id:
         minimum: 1
         type: integer
+      character_ids:
+        description: Cast replacement when present (nil = leave as is, present = full
+          replacement).
+        items:
+          type: string
+        type: array
       content:
         $ref: '#/definitions/models.EditorJsContent'
       date:
@@ -270,6 +397,10 @@ definitions:
     type: object
   dtos.WhitenestChapterResponse:
     properties:
+      cast:
+        items:
+          $ref: '#/definitions/dtos.CharacterResponse'
+        type: array
       chapter:
         $ref: '#/definitions/dtos.PostResponse'
       next:
@@ -290,6 +421,21 @@ definitions:
       title:
         type: string
       whitenest_chapter_number:
+        type: integer
+    type: object
+  models.CharacterSkills:
+    properties:
+      endurance:
+        type: integer
+      guns:
+        type: integer
+      intellect:
+        type: integer
+      melee:
+        type: integer
+      persuasion:
+        type: integer
+      stealth:
         type: integer
     type: object
   models.EditorJsBlock:
@@ -356,6 +502,172 @@ paths:
       summary: List categories
       tags:
       - categories
+  /characters:
+    get:
+      description: |-
+        Returns all characters, alphabetized by short name. Optionally
+        filter by `?search=` (case-insensitive on full and short name).
+      parameters:
+      - description: Substring search on short_name/full_name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dtos.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dtos.CharacterResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List characters
+      tags:
+      - characters
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Character payload
+        in: body
+        name: character
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateCharacterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/dtos.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.CharacterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Create a character
+      tags:
+      - characters
+  /characters/{id}:
+    delete:
+      parameters:
+      - description: Character UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Delete a character
+      tags:
+      - characters
+    get:
+      parameters:
+      - description: Character UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dtos.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.CharacterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Get a character by ID
+      tags:
+      - characters
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Character UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Patch payload
+        in: body
+        name: character
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateCharacterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dtos.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.CharacterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Update a character
+      tags:
+      - characters
   /comments:
     get:
       parameters:

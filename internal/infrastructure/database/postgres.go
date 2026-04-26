@@ -49,14 +49,20 @@ func RunMigrations(db *gorm.DB, log *logging.Logger) error {
 	log.Info("Running database migrations...")
 
 	// Categories and tags must exist before we can wire them into posts.
-	if err := db.AutoMigrate(&models.Category{}, &models.Tag{}); err != nil {
-		return fmt.Errorf("failed to migrate categories/tags: %w", err)
+	if err := db.AutoMigrate(&models.Category{}, &models.Tag{}, &models.Character{}); err != nil {
+		return fmt.Errorf("failed to migrate categories/tags/characters: %w", err)
 	}
 
 	// Use an explicit join model with its own UUID primary key so the join row
 	// is addressable on its own (matches the spec's posts_tags ER diagram).
 	if err := db.SetupJoinTable(&models.Post{}, "Tags", &models.PostsTag{}); err != nil {
 		return fmt.Errorf("failed to setup posts_tags join: %w", err)
+	}
+
+	// Same pattern for characters: explicit join model so we can store extra
+	// columns on the relation (`position` for cast ordering).
+	if err := db.SetupJoinTable(&models.Post{}, "Characters", &models.PostsCharacter{}); err != nil {
+		return fmt.Errorf("failed to setup posts_characters join: %w", err)
 	}
 
 	// Stage the category column on posts before AutoMigrating Post, because the
@@ -260,6 +266,25 @@ func createIndexes(db *gorm.DB, log *logging.Logger) error {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_tags_post_tag ON posts_tags(post_id, tag_id)`,
 	).Error; err != nil {
 		return fmt.Errorf("failed to create posts_tags unique index: %w", err)
+	}
+
+	// Cascade post and character deletes through the cast join table.
+	if err := db.Exec(`
+		ALTER TABLE posts_characters DROP CONSTRAINT IF EXISTS fk_posts_characters_post;
+		ALTER TABLE posts_characters ADD CONSTRAINT fk_posts_characters_post
+			FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+		ALTER TABLE posts_characters DROP CONSTRAINT IF EXISTS fk_posts_characters_character;
+		ALTER TABLE posts_characters ADD CONSTRAINT fk_posts_characters_character
+			FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE;
+	`).Error; err != nil {
+		return fmt.Errorf("failed to set cascade on posts_characters: %w", err)
+	}
+
+	// Prevent duplicate (post, character) pairs.
+	if err := db.Exec(
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_characters_post_character ON posts_characters(post_id, character_id)`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to create posts_characters unique index: %w", err)
 	}
 
 	// Speed up category-name and tag-name lookups (case-insensitive search).

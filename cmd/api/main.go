@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/davidrdsilva/blog-api/docs"
 	"github.com/davidrdsilva/blog-api/config"
+	_ "github.com/davidrdsilva/blog-api/docs"
 	"github.com/davidrdsilva/blog-api/internal/api/handlers"
 	"github.com/davidrdsilva/blog-api/internal/api/router"
 	"github.com/davidrdsilva/blog-api/internal/application/jobs"
@@ -70,9 +70,10 @@ func main() {
 	commentRepo := repository.NewPostgresCommentRepository(db)
 	categoryRepo := repository.NewPostgresCategoryRepository(db)
 	tagRepo := repository.NewPostgresTagRepository(db)
+	characterRepo := repository.NewPostgresCharacterRepository(db)
 
 	// Set up the AI comment generation pipeline:
-	//   PostService -> jobCh -> CommentWorker -> AICommentService -> Gemini (Ollama fallback) -> DB
+	// PostService -> jobCh -> CommentWorker -> AICommentService -> Gemini (Ollama fallback) -> DB
 	jobCh := make(chan jobs.GenerateCommentsJob, 100)
 	ollamaClient := ai.NewOllamaClient(cfg, logger)
 
@@ -103,13 +104,14 @@ func main() {
 	viewWorker.Start(ctx)
 
 	// Initialize services
-	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, cfg, jobCh, viewCh, logger)
+	postService := services.NewPostService(postRepo, categoryRepo, tagRepo, characterRepo, cfg, jobCh, viewCh, logger)
 	uploadService := services.NewUploadService(minioStorage)
 	urlService := services.NewURLService()
 	commentService := services.NewCommentService(commentRepo, postRepo, cfg)
 	categoryService := services.NewCategoryService(categoryRepo)
 	tagService := services.NewTagService(tagRepo)
 	whitenestService := services.NewWhitenestService(postRepo, viewCh, logger)
+	characterService := services.NewCharacterService(characterRepo)
 
 	// Initialize handlers
 	postHandler := handlers.NewPostHandler(postService, logger)
@@ -119,6 +121,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService, logger)
 	tagHandler := handlers.NewTagHandler(tagService, logger)
 	whitenestHandler := handlers.NewWhitenestHandler(whitenestService, logger)
+	characterHandler := handlers.NewCharacterHandler(characterService, logger)
 
 	// Setup router
 	r := router.SetupRouter(
@@ -129,6 +132,7 @@ func main() {
 		categoryHandler,
 		tagHandler,
 		whitenestHandler,
+		characterHandler,
 		logger,
 		cfg.Server.CORSOrigins,
 	)
