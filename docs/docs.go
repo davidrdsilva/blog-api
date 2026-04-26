@@ -1259,7 +1259,6 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "character_ids": {
-                    "description": "Cast assigned to a Whitenest chapter, in display order. Rejected on\nnon-Whitenest posts. nil = no cast supplied.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1295,7 +1294,6 @@ const docTemplate = `{
                     "minLength": 1
                 },
                 "whitenest_chapter_number": {
-                    "description": "Auto-assigned to MAX+1 when omitted on a Whitenest post; rejected on others.",
                     "type": "integer",
                     "minimum": 1
                 }
@@ -1545,7 +1543,6 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "character_ids": {
-                    "description": "Cast replacement when present (nil = leave as is, present = full replacement).",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1570,7 +1567,6 @@ const docTemplate = `{
                     "maxLength": 300
                 },
                 "tags": {
-                    "description": "Tags is treated as a full replacement when present (nil means \"leave as is\").",
                     "type": "array",
                     "items": {
                         "type": "string"

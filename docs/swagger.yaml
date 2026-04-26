@@ -153,9 +153,6 @@ definitions:
         minimum: 1
         type: integer
       character_ids:
-        description: |-
-          Cast assigned to a Whitenest chapter, in display order. Rejected on
-          non-Whitenest posts. nil = no cast supplied.
         items:
           type: string
         type: array
@@ -181,8 +178,6 @@ definitions:
         minLength: 1
         type: string
       whitenest_chapter_number:
-        description: Auto-assigned to MAX+1 when omitted on a Whitenest post; rejected
-          on others.
         minimum: 1
         type: integer
     required:
@@ -354,8 +349,6 @@ definitions:
         minimum: 1
         type: integer
       character_ids:
-        description: Cast replacement when present (nil = leave as is, present = full
-          replacement).
         items:
           type: string
         type: array
@@ -373,8 +366,6 @@ definitions:
         maxLength: 300
         type: string
       tags:
-        description: Tags is treated as a full replacement when present (nil means
-          "leave as is").
         items:
           type: string
         type: array
