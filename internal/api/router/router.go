@@ -56,6 +56,7 @@ func SetupRouter(
 		api.GET("/tags", tagHandler.ListTags)
 
 		// Whitenest serial-fiction endpoints
+		api.GET("/whitenest/chapters", whitenestHandler.ListChapters)
 		api.GET("/whitenest/chapters/:number", whitenestHandler.GetChapter)
 
 		// Upload endpoint

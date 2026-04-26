@@ -75,3 +75,32 @@ func (h *WhitenestHandler) GetChapter(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dtos.SuccessResponse{Data: resp})
 }
+
+// ListChapters handles GET /api/whitenest/chapters
+//
+// @Summary      List all Whitenest chapters
+// @Description  Returns every Whitenest chapter ordered by chapter number ASC
+// @Description  with the lightweight fields needed for list views (id, title,
+// @Description  image, tags, chapter number).
+// @Tags         whitenest
+// @Produce      json
+// @Success      200  {object}  dtos.SuccessResponse{data=[]dtos.WhitenestChapterSummary}
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /whitenest/chapters [get]
+func (h *WhitenestHandler) ListChapters(c *gin.Context) {
+	chapters, err := h.service.ListChapters()
+	if err != nil {
+		h.logger.Error("Failed to list Whitenest chapters",
+			logging.F("error", err.Error()),
+		)
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to list chapters",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dtos.SuccessResponse{Data: chapters})
+}

@@ -60,6 +60,16 @@ type WhitenestChapterRef struct {
 	WhitenestChapterNumber int    `json:"whitenest_chapter_number"`
 }
 
+// WhitenestChapterSummary is a lightweight chapter representation for list
+// views (e.g. the chapters sidebar) — image, title, tags, and chapter number.
+type WhitenestChapterSummary struct {
+	ID                     string        `json:"id"`
+	Title                  string        `json:"title"`
+	Image                  string        `json:"image"`
+	Tags                   []TagResponse `json:"tags"`
+	WhitenestChapterNumber int           `json:"whitenest_chapter_number"`
+}
+
 type WhitenestChapterResponse struct {
 	Chapter  PostResponse         `json:"chapter"`
 	Previous *WhitenestChapterRef `json:"previous"`

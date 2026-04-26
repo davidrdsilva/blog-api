@@ -277,6 +277,21 @@ definitions:
       previous:
         $ref: '#/definitions/dtos.WhitenestChapterRef'
     type: object
+  dtos.WhitenestChapterSummary:
+    properties:
+      id:
+        type: string
+      image:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/dtos.TagResponse'
+        type: array
+      title:
+        type: string
+      whitenest_chapter_number:
+        type: integer
+    type: object
   models.EditorJsBlock:
     properties:
       data:
@@ -743,6 +758,33 @@ paths:
       summary: Upload a file (image or video)
       tags:
       - upload
+  /whitenest/chapters:
+    get:
+      description: |-
+        Returns every Whitenest chapter ordered by chapter number ASC
+        with the lightweight fields needed for list views (id, title,
+        image, tags, chapter number).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dtos.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dtos.WhitenestChapterSummary'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List all Whitenest chapters
+      tags:
+      - whitenest
   /whitenest/chapters/{number}:
     get:
       description: |-

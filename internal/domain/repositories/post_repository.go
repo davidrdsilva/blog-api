@@ -51,4 +51,8 @@ type PostRepository interface {
 
 	// Returns 0 when no chapters exist yet.
 	MaxWhitenestChapterNumber() (int, error)
+
+	// Returns every Whitenest chapter ordered by chapter number ASC. Tags are
+	// preloaded for the sidebar list view; category is omitted.
+	ListWhitenestChapters() ([]*models.Post, error)
 }

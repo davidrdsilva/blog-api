@@ -51,6 +51,28 @@ func ToWhitenestChapterRef(post *models.Post) *dtos.WhitenestChapterRef {
 	}
 }
 
+// Skips posts that aren't Whitenest chapters.
+func ToWhitenestChapterSummaries(posts []*models.Post) []dtos.WhitenestChapterSummary {
+	out := make([]dtos.WhitenestChapterSummary, 0, len(posts))
+	for _, p := range posts {
+		if p == nil || p.WhitenestChapterNumber == nil {
+			continue
+		}
+		tags := ToTagResponses(p.Tags)
+		if tags == nil {
+			tags = []dtos.TagResponse{}
+		}
+		out = append(out, dtos.WhitenestChapterSummary{
+			ID:                     p.ID,
+			Title:                  p.Title,
+			Image:                  p.Image,
+			Tags:                   tags,
+			WhitenestChapterNumber: *p.WhitenestChapterNumber,
+		})
+	}
+	return out
+}
+
 // ToPostListResponse converts a slice of Posts to a PostListResponse
 func ToPostListResponse(posts []*models.Post, meta *models.PaginationMeta) dtos.PostListResponse {
 	responses := make([]dtos.PostResponse, len(posts))

@@ -63,3 +63,12 @@ func (s *WhitenestService) GetChapterByNumber(number int) (*dtos.WhitenestChapte
 		Next:     mappers.ToWhitenestChapterRef(next),
 	}, nil
 }
+
+// ListChapters returns every Whitenest chapter ordered by chapter number ASC.
+func (s *WhitenestService) ListChapters() ([]dtos.WhitenestChapterSummary, error) {
+	posts, err := s.postRepo.ListWhitenestChapters()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list chapters: %w", err)
+	}
+	return mappers.ToWhitenestChapterSummaries(posts), nil
+}

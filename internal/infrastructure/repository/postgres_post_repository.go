@@ -328,6 +328,19 @@ func (r *PostgresPostRepository) FindAdjacentWhitenestChapters(number int) (*mod
 	return previous, next, nil
 }
 
+func (r *PostgresPostRepository) ListWhitenestChapters() ([]*models.Post, error) {
+	var posts []*models.Post
+	err := r.db.
+		Preload("Tags").
+		Where("whitenest_chapter_number IS NOT NULL").
+		Order("whitenest_chapter_number ASC").
+		Find(&posts).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to list whitenest chapters: %w", err)
+	}
+	return posts, nil
+}
+
 func (r *PostgresPostRepository) MaxWhitenestChapterNumber() (int, error) {
 	var max *int
 	err := r.db.Model(&models.Post{}).

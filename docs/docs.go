@@ -663,6 +663,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/whitenest/chapters": {
+            "get": {
+                "description": "Returns every Whitenest chapter ordered by chapter number ASC\nwith the lightweight fields needed for list views (id, title,\nimage, tags, chapter number).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "whitenest"
+                ],
+                "summary": "List all Whitenest chapters",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dtos.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dtos.WhitenestChapterSummary"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/whitenest/chapters/{number}": {
             "get": {
                 "description": "Returns the chapter with the given serial number along with\nminimal references to the previous and next chapters, if any.",
@@ -1134,6 +1175,29 @@ const docTemplate = `{
                 },
                 "previous": {
                     "$ref": "#/definitions/dtos.WhitenestChapterRef"
+                }
+            }
+        },
+        "dtos.WhitenestChapterSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TagResponse"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "whitenest_chapter_number": {
+                    "type": "integer"
                 }
             }
         },
