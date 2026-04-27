@@ -53,10 +53,16 @@ type PostFilters struct {
 	TagNames   []string
 	// nil = no filter, true = only chapters, false = only non-chapters.
 	IsWhitenestChapter *bool
-	SortBy             string // "date", "title", "createdAt", "updatedAt", "whitenest_chapter_number"
-	SortOrder          string // "asc", "desc"
+	SortBy             string
+	SortOrder          string
 	Page               int
 	Limit              int
+	// Posts in categories flagged is_internal (e.g. "Drafts") are excluded from
+	// public listings by default. OnlyInternalCategories returns *only* those
+	// posts (used by the drafts endpoint); IncludeInternalCategories disables
+	// the default exclusion (used by the admin morgue if needed).
+	IncludeInternalCategories bool
+	OnlyInternalCategories    bool
 }
 
 // PaginationMeta holds pagination metadata

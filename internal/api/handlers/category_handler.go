@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/davidrdsilva/blog-api/internal/application/dtos"
 	"github.com/davidrdsilva/blog-api/internal/application/services"
@@ -26,13 +27,19 @@ func NewCategoryHandler(service *services.CategoryService, logger *logging.Logge
 // @Summary      List categories
 // @Tags         categories
 // @Produce      json
-// @Param        search  query     string  false  "Case-insensitive name search"
-// @Success      200     {object}  dtos.CategoryListResponse
-// @Failure      500     {object}  dtos.ErrorResponse
+// @Param        search           query     string  false  "Case-insensitive name search"
+// @Param        include_internal query     bool    false  "Include internal categories (e.g. Drafts) in the response. Default false."
+// @Success      200              {object}  dtos.CategoryListResponse
+// @Failure      500              {object}  dtos.ErrorResponse
 // @Router       /categories [get]
 func (h *CategoryHandler) ListCategories(c *gin.Context) {
 	filters := models.CategoryFilters{
 		Search: c.Query("search"),
+	}
+	if v := c.Query("include_internal"); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			filters.IncludeInternal = parsed
+		}
 	}
 
 	resp, err := h.service.ListCategories(filters)

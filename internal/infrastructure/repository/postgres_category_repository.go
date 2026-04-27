@@ -27,6 +27,10 @@ func (r *PostgresCategoryRepository) FindAll(filters models.CategoryFilters) ([]
 		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(search)+"%")
 	}
 
+	if !filters.IncludeInternal {
+		query = query.Where("is_internal = ?", false)
+	}
+
 	if err := query.Order("name ASC").Find(&categories).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch categories: %w", err)
 	}
@@ -60,9 +64,11 @@ func (r *PostgresCategoryRepository) Exists(id int) (bool, error) {
 func (r *PostgresCategoryRepository) CountPostsByCategory() ([]models.CategoryWithCount, error) {
 	var rows []models.CategoryWithCount
 	// LEFT JOIN so categories with zero posts still appear in the breakdown.
+	// Internal categories (e.g. Drafts) never appear in the public count.
 	err := r.db.Table("categories AS c").
 		Select("c.id AS id, c.name AS name, COUNT(p.id) AS total_posts").
 		Joins("LEFT JOIN posts AS p ON p.category_id = c.id").
+		Where("c.is_internal = ?", false).
 		Group("c.id, c.name").
 		Order("c.name ASC").
 		Scan(&rows).Error

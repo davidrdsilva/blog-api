@@ -11,7 +11,7 @@ type CreatePostRequest struct {
 	Title                  string                  `json:"title" binding:"required,min=1,max=200"`
 	Subtitle               *string                 `json:"subtitle" binding:"omitempty,max=300"`
 	Description            string                  `json:"description" binding:"required,min=1,max=100"`
-	Image                  string                  `json:"image" binding:"required,url"`
+	Image                  string                  `json:"image" binding:"omitempty,url"`
 	Author                 string                  `json:"author" binding:"required,min=1,max=100"`
 	Content                *models.EditorJsContent `json:"content"`
 	Date                   *time.Time              `json:"date" binding:"omitempty"`
@@ -26,7 +26,7 @@ type UpdatePostRequest struct {
 	Title                  *string                 `json:"title" binding:"omitempty,min=1,max=200"`
 	Subtitle               *string                 `json:"subtitle" binding:"omitempty,max=300"`
 	Description            *string                 `json:"description" binding:"omitempty,min=1,max=100"`
-	Image                  *string                 `json:"image" binding:"omitempty,url"`
+	Image                  *string                 `json:"image" binding:"omitempty"`
 	Content                *models.EditorJsContent `json:"content"`
 	Date                   *time.Time              `json:"date" binding:"omitempty"`
 	CategoryID             *int                    `json:"category_id" binding:"omitempty,min=1"`

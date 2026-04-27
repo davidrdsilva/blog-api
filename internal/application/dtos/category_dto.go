@@ -2,8 +2,9 @@ package dtos
 
 // CategoryResponse represents a single category in API responses
 type CategoryResponse struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	IsInternal bool   `json:"is_internal"`
 }
 
 // CategoryListResponse wraps a list of categories under the standard data envelope.

@@ -16,6 +16,8 @@ const defaultCategoryName = "News"
 
 const WhitenestCategoryName = "Whitenest"
 
+const DraftsCategoryName = "Drafts"
+
 // NewPostgresDB creates a new PostgreSQL database connection
 func NewPostgresDB(dsn string, log *logging.Logger) (*gorm.DB, error) {
 	log.Info("Connecting to PostgreSQL database...")
@@ -83,6 +85,12 @@ func RunMigrations(db *gorm.DB, log *logging.Logger) error {
 	if err := stageWhitenestChapterColumn(db, log); err != nil {
 		return err
 	}
+	if err := stageInternalCategoryColumn(db, log); err != nil {
+		return err
+	}
+	if err := seedDraftsCategory(db, log); err != nil {
+		return err
+	}
 
 	log.Info("Database migrations completed successfully")
 
@@ -105,6 +113,43 @@ func seedWhitenestCategory(db *gorm.DB, log *logging.Logger) error {
 		return fmt.Errorf("failed to create Whitenest category: %w", err)
 	}
 	log.Info("Seeded Whitenest category", logging.F("name", WhitenestCategoryName))
+	return nil
+}
+
+// stageInternalCategoryColumn adds categories.is_internal as a boolean default
+// false on existing databases. AutoMigrate handles fresh databases; this guards
+// existing instances that need the column added without breaking inserts.
+func stageInternalCategoryColumn(db *gorm.DB, log *logging.Logger) error {
+	if err := db.Exec(
+		`ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE`,
+	).Error; err != nil {
+		return fmt.Errorf("failed to add categories.is_internal: %w", err)
+	}
+	log.Info("categories.is_internal column staged")
+	return nil
+}
+
+// seedDraftsCategory inserts the "Drafts" row (is_internal=true) if it doesn't
+// already exist. Posts assigned to this category are hidden from public feeds.
+func seedDraftsCategory(db *gorm.DB, log *logging.Logger) error {
+	var count int64
+	if err := db.Model(&models.Category{}).Where("name = ?", DraftsCategoryName).Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check Drafts category: %w", err)
+	}
+	if count > 0 {
+		// Defensive: ensure the row is flagged internal even if it was created
+		// before the column existed.
+		if err := db.Model(&models.Category{}).
+			Where("name = ? AND is_internal = ?", DraftsCategoryName, false).
+			Update("is_internal", true).Error; err != nil {
+			return fmt.Errorf("failed to mark Drafts category as internal: %w", err)
+		}
+		return nil
+	}
+	if err := db.Create(&models.Category{Name: DraftsCategoryName, IsInternal: true}).Error; err != nil {
+		return fmt.Errorf("failed to create Drafts category: %w", err)
+	}
+	log.Info("Seeded Drafts category", logging.F("name", DraftsCategoryName))
 	return nil
 }
 

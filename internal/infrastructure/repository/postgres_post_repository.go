@@ -96,6 +96,17 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 		}
 	}
 
+	// Internal-category visibility. By default, posts whose category has
+	// is_internal=true (Drafts) are hidden from listings. The drafts endpoint
+	// inverts this with OnlyInternalCategories=true.
+	if filters.OnlyInternalCategories {
+		query = query.Joins("JOIN categories ON categories.id = posts.category_id").
+			Where("categories.is_internal = ?", true)
+	} else if !filters.IncludeInternalCategories {
+		query = query.Joins("JOIN categories ON categories.id = posts.category_id").
+			Where("categories.is_internal = ?", false)
+	}
+
 	// Apply tag-name filter (OR semantics: posts that have ANY of the named tags).
 	// We use a subquery (rather than JOIN) so the row count from the main query
 	// stays correct even when a post matches multiple tags.
@@ -221,7 +232,8 @@ func (r *PostgresPostRepository) IncrementViews(id string) error {
 		UpdateColumn("total_views", gorm.Expr("total_views + 1")).Error
 }
 
-// FindMostViewed returns the top-N posts by total_views.
+// FindMostViewed returns the top-N posts by total_views. Excludes posts in
+// internal categories (e.g. Drafts).
 func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, error) {
 	if limit <= 0 {
 		limit = 5
@@ -230,6 +242,8 @@ func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, erro
 	err := r.db.
 		Preload("Category").
 		Preload("Tags").
+		Joins("JOIN categories ON categories.id = posts.category_id").
+		Where("categories.is_internal = ?", false).
 		Order("total_views DESC").
 		Order("date DESC").
 		Limit(limit).
@@ -267,7 +281,8 @@ func (r *PostgresPostRepository) FindSimilar(postID string, limit int) ([]*model
 		Table("posts AS p").
 		Select("p.id AS id, COUNT(pt.tag_id) AS shared_tags").
 		Joins("JOIN posts_tags pt ON pt.post_id = p.id").
-		Where("pt.tag_id IN (?) AND p.id != ?", sourceTagIDs, postID).
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("pt.tag_id IN (?) AND p.id != ? AND c.is_internal = ?", sourceTagIDs, postID, false).
 		Group("p.id, p.date").
 		Order("shared_tags DESC, p.date DESC").
 		Limit(limit).

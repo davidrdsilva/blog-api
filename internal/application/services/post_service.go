@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/davidrdsilva/blog-api/config"
 	"github.com/davidrdsilva/blog-api/internal/application/dtos"
@@ -58,10 +59,6 @@ func NewPostService(
 }
 
 func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse, error) {
-	if err := s.validateImageURL(req.Image); err != nil {
-		return nil, fmt.Errorf("invalid image URL: %w", err)
-	}
-
 	cat, err := s.categoryRepo.FindByID(req.CategoryID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify category: %w", err)
@@ -70,6 +67,18 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 		return nil, fmt.Errorf("invalid category: category %d does not exist", req.CategoryID)
 	}
 	isWhitenestCategory := strings.EqualFold(cat.Name, database.WhitenestCategoryName)
+
+	// The image is only required for posts that will be visible publicly.
+	// Drafts (internal categories) can be saved without one and supply it later
+	// when the editor switches to a public category.
+	if req.Image == "" && !cat.IsInternal {
+		return nil, fmt.Errorf("invalid image URL: image is required for published posts")
+	}
+	if req.Image != "" {
+		if err := s.validateImageURL(req.Image); err != nil {
+			return nil, fmt.Errorf("invalid image URL: %w", err)
+		}
+	}
 
 	if req.WhitenestChapterNumber != nil && !isWhitenestCategory {
 		return nil, fmt.Errorf("%s: provided number=%d on category=%q",
@@ -135,6 +144,11 @@ func (s *PostService) CreatePost(req dtos.CreatePostRequest) (*dtos.PostResponse
 
 func (s *PostService) dispatchAICommentJob(post *models.Post) {
 	if s.jobCh == nil {
+		return
+	}
+	// Drafts (internal categories) shouldn't accumulate AI-generated comments —
+	// they're not public yet, and the comments would carry over to publication.
+	if post.Category != nil && post.Category.IsInternal {
 		return
 	}
 	select {
@@ -236,7 +250,9 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("invalid UUID format")
 	}
 
-	if req.Image != nil {
+	// Empty string is allowed (drafts can sit without an image); we only
+	// validate the trusted-domain prefix when a real URL was supplied.
+	if req.Image != nil && *req.Image != "" {
 		if err := s.validateImageURL(*req.Image); err != nil {
 			return nil, fmt.Errorf("invalid image URL: %w", err)
 		}
@@ -249,6 +265,10 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 	if post == nil {
 		return nil, nil
 	}
+
+	// Snapshot the previous category's internal flag so we can detect a
+	// publish transition (internal → public) below.
+	wasInternal := post.Category != nil && post.Category.IsInternal
 
 	// Re-validate the invariant against the post-update state.
 	effectiveCategoryID := post.CategoryID
@@ -263,6 +283,7 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		return nil, fmt.Errorf("invalid category: category %d does not exist", effectiveCategoryID)
 	}
 	isWhitenestCategory := strings.EqualFold(cat.Name, database.WhitenestCategoryName)
+	publishingDraft := req.CategoryID != nil && wasInternal && !cat.IsInternal
 
 	effectiveChapterNumber := post.WhitenestChapterNumber
 	if req.WhitenestChapterNumber != nil {
@@ -288,6 +309,20 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 
 	// Apply updates
 	mappers.UpdatePostRequestToPost(post, req)
+
+	// Publishing a draft requires a featured image — it's the contract for any
+	// publicly-visible post. Drafts can sit in the morgue without one until the
+	// editor is ready.
+	if !cat.IsInternal && post.Image == "" {
+		return nil, fmt.Errorf("invalid image URL: image is required for published posts")
+	}
+
+	// Publishing a draft (internal category → public category) stamps the post
+	// with the moment of publication, regardless of any date the client sent.
+	// The draft's authoring date isn't its publish date.
+	if publishingDraft {
+		post.Date = time.Now().UTC()
+	}
 
 	// Save changes
 	if err := s.repo.Update(id, post); err != nil {

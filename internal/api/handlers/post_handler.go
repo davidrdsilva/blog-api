@@ -166,7 +166,62 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 // @Failure      500          {object}  dtos.ErrorResponse
 // @Router       /posts [get]
 func (h *PostHandler) ListPosts(c *gin.Context) {
-	// Parse query parameters
+	filters := parsePostFilters(c)
+	posts, err := h.service.ListPosts(filters)
+	if err != nil {
+		h.logger.Error("Failed to list posts", logging.F("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to fetch posts",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, posts)
+}
+
+// ListDrafts handles GET /api/posts/drafts
+//
+// @Summary      List draft posts (admin)
+// @Description  Returns posts whose category is flagged is_internal (e.g. Drafts).
+// @Tags         posts
+// @Produce      json
+// @Param        search    query     string  false  "Full-text search"
+// @Param        sortBy    query     string  false  "Sort field"  Enums(date, title, createdAt, updatedAt)
+// @Param        sortOrder query     string  false  "asc or desc"  Enums(asc, desc)
+// @Param        page      query     int     false  "Page number (default 1)"
+// @Param        limit     query     int     false  "Items per page (default 6, max 50)"
+// @Success      200       {object}  dtos.PostListResponse
+// @Failure      500       {object}  dtos.ErrorResponse
+// @Router       /posts/drafts [get]
+func (h *PostHandler) ListDrafts(c *gin.Context) {
+	filters := parsePostFilters(c)
+	filters.OnlyInternalCategories = true
+	// Whitenest invariants forbid drafts from carrying a chapter number, so the
+	// chapter-exclusion default is irrelevant — clear it to avoid an unnecessary
+	// WHERE clause.
+	filters.IsWhitenestChapter = nil
+
+	posts, err := h.service.ListPosts(filters)
+	if err != nil {
+		h.logger.Error("Failed to list drafts", logging.F("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to fetch drafts",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, posts)
+}
+
+// parsePostFilters extracts the standard list-posts query parameters into a
+// PostFilters value. Shared between ListPosts and ListDrafts.
+func parsePostFilters(c *gin.Context) models.PostFilters {
 	filters := models.PostFilters{
 		Search:    c.Query("search"),
 		Author:    c.Query("author"),
@@ -193,19 +248,7 @@ func (h *PostHandler) ListPosts(c *gin.Context) {
 		}
 	}
 
-	posts, err := h.service.ListPosts(filters)
-	if err != nil {
-		h.logger.Error("Failed to list posts", logging.F("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
-			Error: dtos.ErrorDetail{
-				Code:    "INTERNAL_ERROR",
-				Message: "Failed to fetch posts",
-			},
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, posts)
+	return filters
 }
 
 // Similar handles GET /api/posts/:id/similar

@@ -27,6 +27,8 @@ definitions:
     properties:
       id:
         type: integer
+      is_internal:
+        type: boolean
       name:
         type: string
     type: object
@@ -184,7 +186,6 @@ definitions:
     - author
     - category_id
     - description
-    - image
     - title
     type: object
   dtos.EditorJsErrorDetail:
@@ -479,6 +480,11 @@ paths:
         in: query
         name: search
         type: string
+      - description: Include internal categories (e.g. Drafts) in the response. Default
+          false.
+        in: query
+        name: include_internal
+        type: boolean
       produces:
       - application/json
       responses:
@@ -1000,6 +1006,52 @@ paths:
       summary: Count posts grouped by category
       tags:
       - categories
+  /posts/drafts:
+    get:
+      description: Returns posts whose category is flagged is_internal (e.g. Drafts).
+      parameters:
+      - description: Full-text search
+        in: query
+        name: search
+        type: string
+      - description: Sort field
+        enum:
+        - date
+        - title
+        - createdAt
+        - updatedAt
+        in: query
+        name: sortBy
+        type: string
+      - description: asc or desc
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 6, max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PostListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: List draft posts (admin)
+      tags:
+      - posts
   /posts/most-viewed:
     get:
       produces:

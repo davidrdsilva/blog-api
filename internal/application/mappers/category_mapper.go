@@ -8,8 +8,9 @@ import (
 // ToCategoryResponse converts a domain Category to a CategoryResponse DTO
 func ToCategoryResponse(c *models.Category) dtos.CategoryResponse {
 	return dtos.CategoryResponse{
-		ID:   c.ID,
-		Name: c.Name,
+		ID:         c.ID,
+		Name:       c.Name,
+		IsInternal: c.IsInternal,
 	}
 }
 

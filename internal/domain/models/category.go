@@ -5,8 +5,9 @@ package models
 // small, curated set of labels (unlike tags, which are user-supplied and use
 // UUIDs).
 type Category struct {
-	ID   int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name string `gorm:"type:varchar(60);not null;uniqueIndex" json:"name"`
+	ID         int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name       string `gorm:"type:varchar(60);not null;uniqueIndex" json:"name"`
+	IsInternal bool   `gorm:"not null;default:false" json:"is_internal"`
 }
 
 // TableName specifies the table name for GORM
@@ -16,7 +17,8 @@ func (Category) TableName() string {
 
 // CategoryFilters holds filtering options for querying categories
 type CategoryFilters struct {
-	Search string
+	Search          string
+	IncludeInternal bool
 }
 
 // CategoryWithCount is a projection used by the by-category counter endpoint.

@@ -30,6 +30,12 @@ const docTemplate = `{
                         "description": "Case-insensitive name search",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include internal categories (e.g. Drafts) in the response. Default false.",
+                        "name": "include_internal",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -656,6 +662,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/posts/drafts": {
+            "get": {
+                "description": "Returns posts whose category is flagged is_internal (e.g. Drafts).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "posts"
+                ],
+                "summary": "List draft posts (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "date",
+                            "title",
+                            "createdAt",
+                            "updatedAt"
+                        ],
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "asc or desc",
+                        "name": "sortOrder",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 6, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PostListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/posts/most-viewed": {
             "get": {
                 "produces": [
@@ -1075,6 +1149,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_internal": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 }
@@ -1245,7 +1322,6 @@ const docTemplate = `{
                 "author",
                 "category_id",
                 "description",
-                "image",
                 "title"
             ],
             "properties": {
