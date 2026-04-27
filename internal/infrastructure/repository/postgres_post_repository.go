@@ -112,7 +112,7 @@ func (r *PostgresPostRepository) FindAll(filters models.PostFilters) ([]*models.
 	// stays correct even when a post matches multiple tags.
 	if names := normalizeTagFilterNames(filters.TagNames); len(names) > 0 {
 		query = query.Where(
-			"id IN (?)",
+			"posts.id IN (?)",
 			r.db.Table("posts_tags AS pt").
 				Select("pt.post_id").
 				Joins("JOIN tags AS t ON t.id = pt.tag_id").
