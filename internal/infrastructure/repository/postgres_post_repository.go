@@ -232,8 +232,6 @@ func (r *PostgresPostRepository) IncrementViews(id string) error {
 		UpdateColumn("total_views", gorm.Expr("total_views + 1")).Error
 }
 
-// FindMostViewed returns the top-N posts by total_views. Excludes posts in
-// internal categories (e.g. Drafts).
 func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, error) {
 	if limit <= 0 {
 		limit = 5
@@ -244,6 +242,7 @@ func (r *PostgresPostRepository) FindMostViewed(limit int) ([]*models.Post, erro
 		Preload("Tags").
 		Joins("JOIN categories ON categories.id = posts.category_id").
 		Where("categories.is_internal = ?", false).
+		Where("posts.whitenest_chapter_number IS NULL").
 		Order("total_views DESC").
 		Order("date DESC").
 		Limit(limit).
