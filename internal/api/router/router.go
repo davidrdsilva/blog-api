@@ -64,8 +64,11 @@ func SetupRouter(
 		api.PUT("/characters/:id", characterHandler.UpdateCharacter)
 		api.DELETE("/characters/:id", characterHandler.DeleteCharacter)
 
-		// Whitenest serial-fiction endpoints
+		// Whitenest serial-fiction endpoints. The /order route is mounted before
+		// the :number route so the literal segment isn't shadowed by the
+		// parameter match.
 		api.GET("/whitenest/chapters", whitenestHandler.ListChapters)
+		api.PUT("/whitenest/chapters/order", whitenestHandler.ReorderChapters)
 		api.GET("/whitenest/chapters/:number", whitenestHandler.GetChapter)
 
 		// Upload endpoint

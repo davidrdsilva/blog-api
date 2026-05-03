@@ -398,6 +398,64 @@ func (r *PostgresPostRepository) MaxWhitenestChapterNumber() (int, error) {
 	return *max, nil
 }
 
+// DemoteWhitenestChapter applies the regular post update, clears the chapter
+// number to NULL, and closes the gap by shifting all later chapters down by
+// one — all in a single transaction. The deferrable unique constraint on
+// whitenest_chapter_number is what makes the gap-close shift safe: the
+// statement-level UPDATE may transiently create rows with the same number
+// before each row is decremented; the constraint check fires once at COMMIT,
+// so intermediate states don't trip it.
+//
+// GORM's Updates(struct) skips nil pointer fields, so a separate UpdateColumn
+// call is needed to actually write NULL into whitenest_chapter_number. The
+// caller has set post.WhitenestChapterNumber to nil before this runs, but that
+// nil never reaches the DB without the explicit clear.
+func (r *PostgresPostRepository) DemoteWhitenestChapter(id string, post *models.Post, oldNumber int) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&models.Post{}).Where("id = ?", id).Updates(post)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Model(&models.Post{}).Where("id = ?", id).
+			UpdateColumn("whitenest_chapter_number", nil).Error; err != nil {
+			return fmt.Errorf("failed to clear whitenest_chapter_number: %w", err)
+		}
+		if err := tx.Exec(
+			`UPDATE posts SET whitenest_chapter_number = whitenest_chapter_number - 1 WHERE whitenest_chapter_number > ?`,
+			oldNumber,
+		).Error; err != nil {
+			return fmt.Errorf("failed to close chapter-number gap: %w", err)
+		}
+		return nil
+	})
+}
+
+// ReorderWhitenestChapters writes the supplied chapter numbers for the given
+// posts in a single transaction. Per-row UPDATEs (rather than one big CASE
+// statement) keep the SQL simple at the cost of N round-trips; chapter counts
+// are small. Mid-transaction collisions are absorbed by the deferrable unique
+// constraint, so the order in which rows are written doesn't matter — the
+// constraint is only checked at COMMIT.
+func (r *PostgresPostRepository) ReorderWhitenestChapters(order []models.ChapterOrderItem) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, item := range order {
+			result := tx.Model(&models.Post{}).
+				Where("id = ? AND whitenest_chapter_number IS NOT NULL", item.PostID).
+				UpdateColumn("whitenest_chapter_number", item.Number)
+			if result.Error != nil {
+				return fmt.Errorf("failed to update chapter number for %s: %w", item.PostID, result.Error)
+			}
+			if result.RowsAffected == 0 {
+				return fmt.Errorf("post %s is not a Whitenest chapter", item.PostID)
+			}
+		}
+		return nil
+	})
+}
+
 // ReplaceTags resets the tag set associated with a post. Used by Update so the
 // caller can supply a full replacement list of tags.
 func (r *PostgresPostRepository) ReplaceTags(postID string, tags []*models.Tag) error {

@@ -32,6 +32,17 @@ definitions:
       name:
         type: string
     type: object
+  dtos.ChapterOrderItem:
+    properties:
+      number:
+        minimum: 1
+        type: integer
+      post_id:
+        type: string
+    required:
+    - number
+    - post_id
+    type: object
   dtos.CharacterResponse:
     properties:
       createdAt:
@@ -285,6 +296,16 @@ definitions:
         type: string
       whitenest_chapter_number:
         type: integer
+    type: object
+  dtos.ReorderChaptersRequest:
+    properties:
+      order:
+        items:
+          $ref: '#/definitions/dtos.ChapterOrderItem'
+        minItems: 1
+        type: array
+    required:
+    - order
     type: object
   dtos.SuccessResponse:
     properties:
@@ -1176,6 +1197,43 @@ paths:
           schema:
             $ref: '#/definitions/dtos.ErrorResponse'
       summary: Get a Whitenest chapter by number
+      tags:
+      - whitenest
+  /whitenest/chapters/order:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Accepts the full ordered list of (post_id, number) pairs and
+        rewrites chapter numbers atomically. The submitted set must
+        cover every existing chapter exactly once with contiguous
+        numbers 1..N. A mismatch (e.g. concurrent publish/unpublish)
+        returns 409 so the client can refresh and retry.
+      parameters:
+      - description: Full chapter order
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ReorderChaptersRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.ErrorResponse'
+      summary: Reorder Whitenest chapters
       tags:
       - whitenest
 swagger: "2.0"

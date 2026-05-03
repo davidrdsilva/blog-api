@@ -78,6 +78,20 @@ type WhitenestChapterResponse struct {
 	Cast     []CharacterResponse  `json:"cast"`
 }
 
+// ReorderChaptersRequest is the body of PUT /api/whitenest/chapters/order.
+// `order` must list every existing Whitenest chapter exactly once with numbers
+// 1..N. The service rejects partial submissions so the resulting state is
+// always a valid contiguous numbering.
+type ReorderChaptersRequest struct {
+	Order []ChapterOrderItem `json:"order" binding:"required,min=1,dive"`
+}
+
+// ChapterOrderItem is one (post_id, number) assignment in a reorder request.
+type ChapterOrderItem struct {
+	PostID string `json:"post_id" binding:"required,uuid"`
+	Number int    `json:"number" binding:"required,min=1"`
+}
+
 // PostListResponse represents a paginated list of posts
 type PostListResponse struct {
 	Data []PostResponse        `json:"data"`

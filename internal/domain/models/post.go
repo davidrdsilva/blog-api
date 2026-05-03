@@ -72,6 +72,12 @@ type PostFilters struct {
 	OnlyInternalCategories    bool
 }
 
+// ChapterOrderItem is one (post, position) assignment in a bulk reorder.
+type ChapterOrderItem struct {
+	PostID string
+	Number int
+}
+
 // PaginationMeta holds pagination metadata
 type PaginationMeta struct {
 	Total      int64 `json:"total"`

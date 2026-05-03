@@ -1046,6 +1046,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/whitenest/chapters/order": {
+            "put": {
+                "description": "Accepts the full ordered list of (post_id, number) pairs and\nrewrites chapter numbers atomically. The submitted set must\ncover every existing chapter exactly once with contiguous\nnumbers 1..N. A mismatch (e.g. concurrent publish/unpublish)\nreturns 409 so the client can refresh and retry.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "whitenest"
+                ],
+                "summary": "Reorder Whitenest chapters",
+                "parameters": [
+                    {
+                        "description": "Full chapter order",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReorderChaptersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/whitenest/chapters/{number}": {
             "get": {
                 "description": "Returns the chapter with the given serial number along with\nminimal references to the previous and next chapters, if any.",
@@ -1153,6 +1202,22 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ChapterOrderItem": {
+            "type": "object",
+            "required": [
+                "number",
+                "post_id"
+            ],
+            "properties": {
+                "number": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "post_id": {
                     "type": "string"
                 }
             }
@@ -1523,6 +1588,21 @@ const docTemplate = `{
                 },
                 "whitenest_chapter_number": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.ReorderChaptersRequest": {
+            "type": "object",
+            "required": [
+                "order"
+            ],
+            "properties": {
+                "order": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.ChapterOrderItem"
+                    }
                 }
             }
         },

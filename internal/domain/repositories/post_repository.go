@@ -60,4 +60,16 @@ type PostRepository interface {
 	// Returns every Whitenest chapter ordered by chapter number ASC. Tags are
 	// preloaded for the sidebar list view; category is omitted.
 	ListWhitenestChapters() ([]*models.Post, error)
+
+	// DemoteWhitenestChapter applies the regular post update, clears the post's
+	// chapter number to NULL, and shifts subsequent chapters down by one — all
+	// in a single transaction. Caller is responsible for setting business-level
+	// fields on `post`; this method handles the chapter-number bookkeeping.
+	DemoteWhitenestChapter(id string, post *models.Post, oldNumber int) error
+
+	// ReorderWhitenestChapters atomically rewrites chapter numbers for the
+	// supplied (post_id, number) pairs in a single transaction. Caller must
+	// validate that the pairs cover the current Whitenest set exactly and that
+	// numbers are contiguous 1..N before calling.
+	ReorderWhitenestChapters(order []models.ChapterOrderItem) error
 }

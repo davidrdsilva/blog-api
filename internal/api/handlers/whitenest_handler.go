@@ -76,6 +76,70 @@ func (h *WhitenestHandler) GetChapter(c *gin.Context) {
 	c.JSON(http.StatusOK, dtos.SuccessResponse{Data: resp})
 }
 
+// ReorderChapters handles PUT /api/whitenest/chapters/order
+//
+// @Summary      Reorder Whitenest chapters
+// @Description  Accepts the full ordered list of (post_id, number) pairs and
+// @Description  rewrites chapter numbers atomically. The submitted set must
+// @Description  cover every existing chapter exactly once with contiguous
+// @Description  numbers 1..N. A mismatch (e.g. concurrent publish/unpublish)
+// @Description  returns 409 so the client can refresh and retry.
+// @Tags         whitenest
+// @Accept       json
+// @Produce      json
+// @Param        body  body      dtos.ReorderChaptersRequest  true  "Full chapter order"
+// @Success      204
+// @Failure      400  {object}  dtos.ErrorResponse
+// @Failure      409  {object}  dtos.ErrorResponse
+// @Failure      500  {object}  dtos.ErrorResponse
+// @Router       /whitenest/chapters/order [put]
+func (h *WhitenestHandler) ReorderChapters(c *gin.Context) {
+	var req dtos.ReorderChaptersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INVALID_REQUEST",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
+
+	if err := h.service.ReorderChapters(req); err != nil {
+		msg := err.Error()
+		switch {
+		case containsStr(msg, "chapter set mismatch"):
+			c.JSON(http.StatusConflict, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "CHAPTER_SET_MISMATCH",
+					Message: msg,
+				},
+			})
+			return
+		case containsStr(msg, "duplicate") || containsStr(msg, "must be contiguous") || containsStr(msg, "must not be empty"):
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "INVALID_CHAPTER_ORDER",
+					Message: msg,
+				},
+			})
+			return
+		}
+		h.logger.Error("Failed to reorder Whitenest chapters",
+			logging.F("error", msg),
+		)
+		c.JSON(http.StatusInternalServerError, dtos.ErrorResponse{
+			Error: dtos.ErrorDetail{
+				Code:    "INTERNAL_ERROR",
+				Message: "Failed to reorder chapters",
+			},
+		})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // ListChapters handles GET /api/whitenest/chapters
 //
 // @Summary      List all Whitenest chapters

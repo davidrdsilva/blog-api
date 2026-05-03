@@ -372,6 +372,16 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 			return
 		}
 
+		if containsStr(err.Error(), "whitenest manual chapter renumber") {
+			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
+				Error: dtos.ErrorDetail{
+					Code:    "WHITENEST_REORDER_REQUIRED",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
 		if containsStr(err.Error(), "whitenest invariant") {
 			c.JSON(http.StatusBadRequest, dtos.ErrorResponse{
 				Error: dtos.ErrorDetail{

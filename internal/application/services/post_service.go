@@ -23,6 +23,13 @@ const errWhitenestMismatch = "whitenest invariant: chapter number requires White
 // a clear error code when character_ids is supplied on a non-Whitenest post.
 const errCastNotWhitenest = "whitenest invariant: cast requires Whitenest category"
 
+// errWhitenestManualRenumber is matched as a substring by the post handler to
+// surface WHITENEST_REORDER_REQUIRED. Direct chapter-number edits via
+// PUT /api/posts/:id are rejected because reordering must happen through the
+// dedicated bulk endpoint, which validates the full chapter set in one shot
+// and avoids partial states.
+const errWhitenestManualRenumber = "whitenest manual chapter renumber not allowed: use the reorder endpoint"
+
 // PostService handles business logic for posts
 type PostService struct {
 	repo          repositories.PostRepository
@@ -285,20 +292,50 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 	isWhitenestCategory := strings.EqualFold(cat.Name, database.WhitenestCategoryName)
 	publishingDraft := req.CategoryID != nil && wasInternal && !cat.IsInternal
 
-	effectiveChapterNumber := post.WhitenestChapterNumber
+	// Reject any *change* to the chapter number coming through this endpoint.
+	// Reordering goes through PUT /api/whitenest/chapters/order, which
+	// validates the full chapter set atomically; allowing single-row renumbers
+	// here would either bypass that validation or duplicate it. A request
+	// echoing the post's current number is allowed, because edit forms
+	// typically round-trip the full payload — rejecting echoes would block
+	// every chapter edit (this is what produced the original bug we're fixing).
 	if req.WhitenestChapterNumber != nil {
-		effectiveChapterNumber = req.WhitenestChapterNumber
+		echoesCurrent := post.WhitenestChapterNumber != nil &&
+			*req.WhitenestChapterNumber == *post.WhitenestChapterNumber
+		if !echoesCurrent {
+			return nil, fmt.Errorf("%s: provided number=%d", errWhitenestManualRenumber, *req.WhitenestChapterNumber)
+		}
 	}
 
-	if effectiveChapterNumber != nil && !isWhitenestCategory {
-		return nil, fmt.Errorf("%s: post would have number=%d on category=%q",
-			errWhitenestMismatch, *effectiveChapterNumber, cat.Name)
+	// Demote: post was a Whitenest chapter, new category is not Whitenest.
+	// Clear the number and close the gap inside one transaction below.
+	demotingFromWhitenest := post.WhitenestChapterNumber != nil && !isWhitenestCategory
+	var demoteFromNumber int
+	if demotingFromWhitenest {
+		demoteFromNumber = *post.WhitenestChapterNumber
 	}
+
+	// Same echo allowance as for chapter number: a non-empty cast on a
+	// non-Whitenest category is rejected, *unless* the request is just sending
+	// back the post's existing cast unchanged. Edit forms typically round-trip
+	// the full payload, so an unchanged cast accompanies any edit — including
+	// a demote — and shouldn't be flagged as an invariant violation. The cast
+	// is preserved on disk so an undo (re-promote) restores it; an explicit
+	// `character_ids: []` still clears it.
 	if req.CharacterIDs != nil && len(*req.CharacterIDs) > 0 && !isWhitenestCategory {
-		return nil, fmt.Errorf("%s: provided cast on category=%q",
-			errCastNotWhitenest, cat.Name)
+		if !sameCast(*req.CharacterIDs, post.Characters) {
+			return nil, fmt.Errorf("%s: provided cast on category=%q",
+				errCastNotWhitenest, cat.Name)
+		}
+		// Drop the echoed cast from the request so persistCast doesn't run a
+		// no-op replace on the way out — the join rows are already correct.
+		req.CharacterIDs = nil
 	}
-	if isWhitenestCategory && effectiveChapterNumber == nil {
+
+	// Promote / fresh Whitenest write: auto-assign next available number when
+	// the post lands in Whitenest without one. Skipped if we're demoting (the
+	// post is leaving Whitenest, not joining it).
+	if isWhitenestCategory && post.WhitenestChapterNumber == nil {
 		max, err := s.repo.MaxWhitenestChapterNumber()
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign next chapter number: %w", err)
@@ -309,6 +346,14 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 
 	// Apply updates
 	mappers.UpdatePostRequestToPost(post, req)
+	if demotingFromWhitenest {
+		// Mapper preserves the existing number when req doesn't override it;
+		// for a demote we want the column to land as NULL. The repo's
+		// DemoteWhitenestChapter follows up with an explicit UPDATE, but
+		// nilling here keeps the in-memory model consistent for callers that
+		// inspect `post` after this point.
+		post.WhitenestChapterNumber = nil
+	}
 
 	// Publishing a draft requires a featured image — it's the contract for any
 	// publicly-visible post. Drafts can sit in the morgue without one until the
@@ -324,8 +369,16 @@ func (s *PostService) UpdatePost(id string, req dtos.UpdatePostRequest) (*dtos.P
 		post.Date = time.Now().UTC()
 	}
 
-	// Save changes
-	if err := s.repo.Update(id, post); err != nil {
+	// Save changes. Demote routes through a transactional path that also clears
+	// the chapter number column and shifts later chapters down to close the gap;
+	// the regular Update path can't do either (Updates skips nil pointers, and
+	// the gap-close needs to share a transaction with the post update so a
+	// crash mid-flow can't leave numbers misaligned).
+	if demotingFromWhitenest {
+		if err := s.repo.DemoteWhitenestChapter(id, post, demoteFromNumber); err != nil {
+			return nil, fmt.Errorf("failed to demote chapter: %w", err)
+		}
+	} else if err := s.repo.Update(id, post); err != nil {
 		return nil, fmt.Errorf("failed to update post: %w", err)
 	}
 
@@ -406,4 +459,20 @@ func (s *PostService) validateImageURL(imageURL string) error {
 func isValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil
+}
+
+// sameCast reports whether the supplied character IDs match the post's
+// currently-loaded cast in both content and order. Order matters because the
+// cast position is persisted (PostsCharacter.Position drives display order),
+// so a reorder is a real change, not an echo.
+func sameCast(reqIDs []string, current []models.Character) bool {
+	if len(reqIDs) != len(current) {
+		return false
+	}
+	for i, id := range reqIDs {
+		if current[i].ID != id {
+			return false
+		}
+	}
+	return true
 }
