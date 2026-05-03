@@ -22,7 +22,14 @@ type Post struct {
 	Tags                   []Tag            `gorm:"many2many:posts_tags;" json:"tags,omitempty"`
 	Characters             []Character      `gorm:"many2many:posts_characters;" json:"characters,omitempty"`
 	TotalViews             int              `gorm:"not null;default:0" json:"total_views"`
-	WhitenestChapterNumber *int             `gorm:"uniqueIndex" json:"whitenest_chapter_number,omitempty"`
+	// The `unique` tag (not `uniqueIndex`) is what flips field.Unique on the
+	// schema, which is the flag GORM's MigrateColumnUnique compares against the
+	// DB's column-level uniqueness. With this set, AutoMigrate sees a unique
+	// column on both sides and leaves the constraint alone; the staged migration
+	// then upgrades it in place to DEFERRABLE INITIALLY DEFERRED so bulk reorders
+	// can swap numbers across rows in one transaction without tripping the check
+	// mid-statement.
+	WhitenestChapterNumber *int             `gorm:"unique" json:"whitenest_chapter_number,omitempty"`
 	Comments               []Comment        `gorm:"foreignKey:PostID;references:ID;constraint:OnDelete:CASCADE" json:"comments,omitempty"`
 	CreatedAt              time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"createdAt"`
 	UpdatedAt              time.Time        `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updatedAt"`

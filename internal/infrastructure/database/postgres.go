@@ -153,9 +153,24 @@ func seedDraftsCategory(db *gorm.DB, log *logging.Logger) error {
 	return nil
 }
 
-// stageWhitenestChapterColumn (re)asserts the column and its partial unique
-// index. AutoMigrate handles fresh databases; this guards existing instances
-// picking up the field for the first time.
+// stageWhitenestChapterColumn upgrades the column's unique constraint to
+// DEFERRABLE INITIALLY DEFERRED so that bulk chapter reorders — which
+// temporarily swap numbers between rows — can run inside a single transaction
+// without tripping the unique check mid-statement; the check fires once at
+// COMMIT instead. NULLs are permitted multiply because PostgreSQL's default
+// UNIQUE NULLS DISTINCT treats them as non-equal, which matches what a partial
+// `WHERE ... IS NOT NULL` index would have given us.
+//
+// The end-state constraint is named uni_posts_whitenest_chapter_number, which
+// is what GORM's NamingStrategy.UniqueName produces for the `unique` field tag.
+// AutoMigrate then sees field.Unique=true and a unique constraint on the column,
+// agrees with itself, and stays out of the way. The constraint name is the
+// glue: keep the field tag and the name in sync.
+//
+// Idempotent: if the deferrable constraint already exists under that name, this
+// is a no-op. Otherwise it drops any other unique constraint on the column and
+// any legacy index left over from prior schema iterations, then installs the
+// deferrable constraint.
 func stageWhitenestChapterColumn(db *gorm.DB, log *logging.Logger) error {
 	if err := db.Exec(
 		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS whitenest_chapter_number INTEGER`,
@@ -164,11 +179,47 @@ func stageWhitenestChapterColumn(db *gorm.DB, log *logging.Logger) error {
 	}
 
 	if err := db.Exec(`
-		CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_whitenest_chapter_number
-		ON posts(whitenest_chapter_number)
-		WHERE whitenest_chapter_number IS NOT NULL
+		DO $$
+		DECLARE
+			target_name TEXT := 'uni_posts_whitenest_chapter_number';
+			other RECORD;
+		BEGIN
+			IF EXISTS (
+				SELECT 1 FROM pg_constraint
+				WHERE conname = target_name
+				  AND conrelid = 'posts'::regclass
+				  AND condeferrable
+			) THEN
+				RETURN;
+			END IF;
+
+			-- Drop every single-column UNIQUE constraint on whitenest_chapter_number,
+			-- whatever its name. Covers prior names (uq_*) and a non-deferrable
+			-- uni_* installed by GORM at CREATE TABLE on a fresh DB.
+			FOR other IN
+				SELECT con.conname
+				FROM pg_constraint con
+				JOIN pg_attribute att
+				  ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+				WHERE con.conrelid = 'posts'::regclass
+				  AND con.contype = 'u'
+				  AND att.attname = 'whitenest_chapter_number'
+				  AND array_length(con.conkey, 1) = 1
+			LOOP
+				EXECUTE format('ALTER TABLE posts DROP CONSTRAINT %I', other.conname);
+			END LOOP;
+
+			-- Drop legacy non-constraint unique indexes by canonical names.
+			EXECUTE 'DROP INDEX IF EXISTS idx_posts_whitenest_chapter_number';
+			EXECUTE 'DROP INDEX IF EXISTS uq_posts_whitenest_chapter_number';
+
+			ALTER TABLE posts
+				ADD CONSTRAINT uni_posts_whitenest_chapter_number
+				UNIQUE (whitenest_chapter_number)
+				DEFERRABLE INITIALLY DEFERRED;
+		END $$;
 	`).Error; err != nil {
-		return fmt.Errorf("failed to create whitenest_chapter_number unique index: %w", err)
+		return fmt.Errorf("failed to install deferrable whitenest_chapter_number unique constraint: %w", err)
 	}
 
 	log.Info("posts.whitenest_chapter_number staged migration applied")
